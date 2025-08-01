@@ -25,6 +25,7 @@ public class PdfSignController {
         return "talvez você esteja utilizando o metodo GET ao inves de POST";
     }
 
+    @CrossOrigin(origins = "http://localhost:5173")
     @PostMapping("/sign")
     public ResponseEntity<byte[]> signPdf(@RequestParam("file")MultipartFile file) throws Exception {
         KeyPair keyPair = KeyGenerator.generateKeyPair();
@@ -36,5 +37,4 @@ public class PdfSignController {
 
         return new ResponseEntity<>(signedPdf, headers, HttpStatus.OK);
     }
-
 }

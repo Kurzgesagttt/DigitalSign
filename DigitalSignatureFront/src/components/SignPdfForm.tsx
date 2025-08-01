@@ -1,12 +1,18 @@
-// components/SignPdfForm.tsx
 import React, { useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
+
 import { useSignPdf } from '../hooks/useSignPdf';
 
-export const SignPdfForm = () => {
+export const SignPdfForm: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const { signPdf, loading, error } = useSignPdf();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0] || null;
+    setFile(selectedFile);
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (file) {
       await signPdf(file);
@@ -18,7 +24,7 @@ export const SignPdfForm = () => {
       <input
         type="file"
         accept="application/pdf"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        onChange={handleFileChange}
       />
       <button type="submit" disabled={loading || !file}>
         {loading ? 'Enviando...' : 'Assinar PDF'}
@@ -26,4 +32,5 @@ export const SignPdfForm = () => {
       {error && <p style={{ color: 'red' }}>{error}</p>}
     </form>
   );
-};
+}
+export default SignPdfForm;
