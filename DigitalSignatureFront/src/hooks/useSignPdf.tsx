@@ -23,7 +23,6 @@ export function useSignPdf() {
           },
         }
       );
-
       const signedBlob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(signedBlob);
       // Força o download
