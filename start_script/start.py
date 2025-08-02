@@ -1,8 +1,9 @@
 import subprocess
 import os
+from pathlib import Path
 
-# Caminho onde está o docker-compose.yml
-docker_compose_path = "../"  # ou o caminho absoluto se preferir
+# Caminho absoluto para o diretório do docker-compose.yml
+docker_compose_path = Path(__file__).resolve().parent.parent
 
 def verificar_docker_instalado():
     try:
@@ -18,9 +19,15 @@ def verificar_docker_instalado():
         return False
 
 def start_docker_compose():
+    compose_file = docker_compose_path / "docker-compose.yml"
+    if not compose_file.exists():
+        print(f"❌ Arquivo docker-compose.yml não encontrado em {docker_compose_path}")
+        return
+
     os.chdir(docker_compose_path)
+    print(f"🚀 Subindo containers com docker-compose em: {docker_compose_path}")
     subprocess.run(["docker-compose", "up", "--build"])
 
 if __name__ == "__main__":
-    verificar_docker_instalado()
-    start_docker_compose()
+    if verificar_docker_instalado():
+        start_docker_compose()
