@@ -1,0 +1,6 @@
+com/Kurzgesagtt/DigitalSignature/config/AppConfig.class
+com/Kurzgesagtt/DigitalSignature/services/PdfMemorySignService.class
+com/Kurzgesagtt/DigitalSignature/services/PdfMemorySignService$PdfBoxSignature.class
+com/Kurzgesagtt/DigitalSignature/services/KeyGenerator.class
+com/Kurzgesagtt/DigitalSignature/controller/PdfSignController.class
+com/Kurzgesagtt/DigitalSignature/Application.class
