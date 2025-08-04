@@ -1,6 +1,0 @@
-spring:
-    application:
-      name: digitalsign
-    servlet:
-      multipart:
-        enabled: true
