@@ -2,7 +2,6 @@ import subprocess
 import os
 from pathlib import Path
 
-# Caminho absoluto para o diretório do docker-compose.yml
 docker_compose_path = Path(__file__).resolve().parent.parent
 
 def verificar_docker_instalado():

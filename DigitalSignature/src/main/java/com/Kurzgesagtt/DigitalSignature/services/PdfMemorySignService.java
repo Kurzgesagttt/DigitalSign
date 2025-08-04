@@ -30,7 +30,6 @@ public class PdfMemorySignService {
             signature.setName("API Kurzgesagtt");
             signature.setLocation("Server localhost:8080");
             signature.setSignDate(Calendar.getInstance());
-
             //gerencia o documento aqui
             document.addSignature(signature, new PdfBoxSignature(privateKey));
             document.saveIncremental(outputStream);
