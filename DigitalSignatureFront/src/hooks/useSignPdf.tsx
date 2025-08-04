@@ -4,7 +4,7 @@ import axios from 'axios';
 export function useSignPdf() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  
   async function signPdf(file: File): Promise<void> {
     setLoading(true);
     setError(null);
@@ -13,7 +13,7 @@ export function useSignPdf() {
     formData.append('file', file);
 
     try {
-      const response = await axios.post('http://localhost:8080/v1/sign', formData, {
+      const response = await axios.post('http://backend:8080/v1/sign', formData, {
         responseType: 'blob',
         headers: {
           'Content-Type': 'multipart/form-data',

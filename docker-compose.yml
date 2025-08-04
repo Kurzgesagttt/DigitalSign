@@ -7,7 +7,7 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
     networks:
       - app-network
-    hostname: backend # Adicione esta linha
+    hostname: backend
 
   frontend:
     build: ./DigitalSignatureFront
