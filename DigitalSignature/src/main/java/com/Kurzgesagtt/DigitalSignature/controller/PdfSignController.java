@@ -12,7 +12,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.security.KeyPair;
 
-//Esse controller está disponível apenas para testes locais, sem assinaturas válidas.
 @RestController
 @RequestMapping("/v1")
 public class PdfSignController {
@@ -22,23 +21,29 @@ public class PdfSignController {
 
     @GetMapping("/sign")
     public String index() {
-        return "talvez você esteja utilizando o metodo GET ao inves de POST";
+        return "Use o método POST para enviar o PDF a ser assinado.";
     }
 
-    @CrossOrigin(origins = {
-            "http://localhost:5173",
-            "http://frontend:5173",// para desenvolvimento local
-            "http://frontend",       // se o frontend acessar via container diretamente
-            "http://frontend:80"     // opcional, mas seguro incluir
-    })
     @PostMapping("/sign")
-    public ResponseEntity<byte[]> signPdf(@RequestParam("file")MultipartFile file) throws Exception {
+    public ResponseEntity<byte[]> signPdf(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("nome") String nome,
+            @RequestParam("email") String email,
+            @RequestParam("cpf") String cpf
+    ) throws Exception {
+
         KeyPair keyPair = KeyGenerator.generateKeyPair();
-        byte[] signedPdf = PdfMemorySignService.signPdf(file.getBytes(), keyPair.getPrivate());
+        byte[] signedPdf = PdfMemorySignService.signPdf(
+                file.getBytes(),
+                keyPair.getPrivate(),
+                nome,
+                email,
+                cpf
+        );
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
-        headers.setContentDispositionFormData("attachment", "signed.pdf"); // ou inline para visualizar no navegador
+        headers.setContentDispositionFormData("attachment", "documento_assinado.pdf");
 
         return new ResponseEntity<>(signedPdf, headers, HttpStatus.OK);
     }

@@ -11,12 +11,22 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class AppConfig {
     @Bean
-    public WebMvcConfigurer corsConfig(){
+    public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
+
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("*")
+                        .allowedOriginPatterns(
+                                "http://localhost:5173",
+                                "http://localhost:5174",
+                                "http://localhost:5175",
+                                "http://127.0.0.1:5173",
+                                "http://127.0.0.1:5174",
+                                "http://frontend:5173"
+                        )
+                        .allowedMethods("*")
+                        .allowedHeaders("*")
                         .allowCredentials(true);
             }
         };

@@ -1,0 +1,53 @@
+# IDEs e Editores
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# Sistema Operacional
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Arquivos temporários
+*.tmp
+*.temp
+
+# Node modules (frontend)
+node_modules/
+
+# Build outputs
+target/
+dist/
+build/
+*.class
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Docker volumes
+volumes/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Certificados e chaves (segurança)
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
