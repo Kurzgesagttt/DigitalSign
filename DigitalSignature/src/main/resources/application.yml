@@ -4,3 +4,12 @@ spring:
     servlet:
       multipart:
         enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
