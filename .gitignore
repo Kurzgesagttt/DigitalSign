@@ -101,4 +101,3 @@ ENV/
 
 # ===== RAILWAY/DEPLOY =====
 .railway/
-railway.json
