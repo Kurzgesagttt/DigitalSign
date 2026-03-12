@@ -15,6 +15,7 @@
 .env.*.local
 .env.production
 .env.development
+.env.examples
 application-prod.yml
 application-local.yml
 secrets.yml

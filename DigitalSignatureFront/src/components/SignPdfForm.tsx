@@ -3,11 +3,19 @@ import type { ChangeEvent, FormEvent } from 'react';
 
 import { useSignPdf } from '../hooks/useSignPdf';
 
-export const SignPdfForm: React.FC = () => {
+interface User {
+  id: number;
+  nome: string;
+  email: string;
+  cpf: string;
+}
+
+interface Props {
+  user: User;
+}
+
+export const SignPdfForm: React.FC<Props> = ({ user }) => {
   const [file, setFile] = useState<File | null>(null);
-  const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
-  const [cpf, setCpf] = useState('');
   const { signPdf, loading, error } = useSignPdf();
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -17,13 +25,19 @@ export const SignPdfForm: React.FC = () => {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (file && nome && email && cpf) {
-      await signPdf({ file, nome, email, cpf });
+    if (file) {
+      await signPdf({ file, nome: user.nome, email: user.email, cpf: user.cpf });
     }
   };
 
   return (
     <form onSubmit={handleSubmit}>
+      <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', backgroundColor: 'var(--bg-tertiary)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+          Assinando como: <strong style={{ color: 'var(--text-primary)' }}>{user.nome}</strong> ({user.email})
+        </p>
+      </div>
+
       <div className="file-input-wrapper">
         <label 
           htmlFor="pdf-file" 
@@ -64,61 +78,7 @@ export const SignPdfForm: React.FC = () => {
         />
       </div>
       
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <input
-          type="text"
-          placeholder="Nome completo"
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
-          required
-          style={{
-            padding: '0.75rem 1rem',
-            backgroundColor: 'var(--bg-tertiary)',
-            border: '1px solid var(--border)',
-            borderRadius: '8px',
-            color: 'var(--text-primary)',
-            fontSize: '1rem',
-            fontFamily: 'inherit'
-          }}
-        />
-        
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={{
-            padding: '0.75rem 1rem',
-            backgroundColor: 'var(--bg-tertiary)',
-            border: '1px solid var(--border)',
-            borderRadius: '8px',
-            color: 'var(--text-primary)',
-            fontSize: '1rem',
-            fontFamily: 'inherit'
-          }}
-        />
-        
-        <input
-          type="text"
-          placeholder="CPF (apenas números)"
-          value={cpf}
-          onChange={(e) => setCpf(e.target.value.replace(/\D/g, ''))}
-          maxLength={11}
-          required
-          style={{
-            padding: '0.75rem 1rem',
-            backgroundColor: 'var(--bg-tertiary)',
-            border: '1px solid var(--border)',
-            borderRadius: '8px',
-            color: 'var(--text-primary)',
-            fontSize: '1rem',
-            fontFamily: 'inherit'
-          }}
-        />
-      </div>
-      
-      <button type="submit" disabled={loading || !file || !nome || !email || !cpf}>
+      <button type="submit" disabled={loading || !file}>
         {loading ? 'Processando...' : 'Assinar PDF'}
       </button>
       

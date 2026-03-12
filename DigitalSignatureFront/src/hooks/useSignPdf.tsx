@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import axios from 'axios';
 
+const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
 interface SignPdfParams {
   file: File;
   nome: string;
@@ -11,7 +13,6 @@ interface SignPdfParams {
 export function useSignPdf() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const apiBaseUrl = 'http://localhost:8080';  //colocar no .env npm r
 
   async function signPdf({ file, nome, email, cpf }: SignPdfParams): Promise<void> {
     setLoading(true);
@@ -24,7 +25,7 @@ export function useSignPdf() {
     formData.append('cpf', cpf);
 
     try {
-      const response = await axios.post(`${apiBaseUrl}/v1/sign`, formData, {
+      const response = await axios.post(`${API}/v1/sign`, formData, {
         responseType: 'blob',
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -38,8 +39,18 @@ export function useSignPdf() {
       a.download = 'documento_assinado.pdf';
       a.click();
       window.URL.revokeObjectURL(url);
-    } catch (err) {
-      setError('Erro ao assinar PDF. Verifique se o backend está rodando.');
+    } catch (err: any) {
+      if (err?.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          setError(json.erro || 'Erro ao assinar PDF.');
+        } catch {
+          setError('Erro ao assinar PDF.');
+        }
+      } else {
+        setError('Erro ao assinar PDF. Verifique se o backend está rodando.');
+      }
       console.error(err);
     } finally {
       setLoading(false);

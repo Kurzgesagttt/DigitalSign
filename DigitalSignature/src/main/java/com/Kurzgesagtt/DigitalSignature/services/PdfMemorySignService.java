@@ -7,6 +7,7 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.pdmodel.interactive.digitalsignature.PDSignature;
 import org.apache.pdfbox.pdmodel.interactive.digitalsignature.SignatureInterface;
 import org.springframework.stereotype.Service;
@@ -24,28 +25,22 @@ import java.util.Calendar;
 @Service
 public class PdfMemorySignService {
 
-    public static byte[] signPdf(byte[] pdfBytes, PrivateKey privateKey, String nome, String email, String cpf) throws IOException {
-        // Primeiro: Carrega o documento e adiciona a página de certificado
+    public static byte[] signPdf(byte[] pdfBytes, PrivateKey privateKey, String nome, String email, String cpf,
+                                  String verificationCode, String verificationUrl, byte[] qrCodeBytes) throws IOException {
         byte[] modifiedPdfBytes;
         try (PDDocument document = PDDocument.load(pdfBytes);
              ByteArrayOutputStream tempStream = new ByteArrayOutputStream()) {
 
-            // Adiciona metadados ao documento
             adicionarMetadados(document, nome, email, cpf);
-            
-            // Adiciona uma nova página com dados do usuário
-            adicionarPaginaDeAssinatura(document, nome, email, cpf);
-            
-            // Salva o documento modificado
+            adicionarPaginaDeAssinatura(document, nome, email, cpf, verificationCode, verificationUrl, qrCodeBytes);
+
             document.save(tempStream);
             modifiedPdfBytes = tempStream.toByteArray();
         }
 
-        // Segundo: Carrega o documento modificado e adiciona a assinatura
         try (PDDocument document = PDDocument.load(modifiedPdfBytes);
              ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 
-            // Cria a assinatura digital
             PDSignature signature = new PDSignature();
             signature.setFilter(PDSignature.FILTER_ADOBE_PPKLITE);
             signature.setSubFilter(PDSignature.SUBFILTER_ADBE_PKCS7_DETACHED);
@@ -55,7 +50,6 @@ public class PdfMemorySignService {
             signature.setSignDate(Calendar.getInstance());
             signature.setContactInfo(email);
 
-            // Adiciona assinatura
             document.addSignature(signature, new PdfBoxSignature(privateKey));
             document.saveIncremental(outputStream);
 
@@ -83,7 +77,8 @@ public class PdfMemorySignService {
         document.setDocumentInformation(info);
     }
 
-    private static void adicionarPaginaDeAssinatura(PDDocument document, String nome, String email, String cpf) throws IOException {
+    private static void adicionarPaginaDeAssinatura(PDDocument document, String nome, String email, String cpf,
+                                                     String verificationCode, String verificationUrl, byte[] qrCodeBytes) throws IOException {
         PDPage page = new PDPage();
         document.addPage(page);
 
@@ -117,45 +112,11 @@ public class PdfMemorySignService {
             
             yPosition -= 30;
             
-            contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
-            contentStream.newLineAtOffset(margin, yPosition);
-            contentStream.showText("Nome Completo:");
-            contentStream.endText();
-            
-            contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA, 12);
-            contentStream.newLineAtOffset(margin + 150, yPosition);
-            contentStream.showText(nome);
-            contentStream.endText();
-            
+            drawField(contentStream, margin, yPosition, "Nome Completo:", nome);
             yPosition -= 25;
-            
-            contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
-            contentStream.newLineAtOffset(margin, yPosition);
-            contentStream.showText("CPF:");
-            contentStream.endText();
-            
-            contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA, 12);
-            contentStream.newLineAtOffset(margin + 150, yPosition);
-            contentStream.showText(formatarCPF(cpf));
-            contentStream.endText();
-            
+            drawField(contentStream, margin, yPosition, "CPF:", formatarCPF(cpf));
             yPosition -= 25;
-            
-            contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
-            contentStream.newLineAtOffset(margin, yPosition);
-            contentStream.showText("E-mail para Contato:");
-            contentStream.endText();
-            
-            contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA, 12);
-            contentStream.newLineAtOffset(margin + 150, yPosition);
-            contentStream.showText(email);
-            contentStream.endText();
+            drawField(contentStream, margin, yPosition, "E-mail para Contato:", email);
             
             yPosition -= 50;
             
@@ -169,56 +130,56 @@ public class PdfMemorySignService {
             yPosition -= 30;
             
             String dataHora = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy 'as' HH:mm:ss"));
-            
-            contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
-            contentStream.newLineAtOffset(margin, yPosition);
-            contentStream.showText("Data e Hora:");
-            contentStream.endText();
-            
-            contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA, 12);
-            contentStream.newLineAtOffset(margin + 150, yPosition);
-            contentStream.showText(dataHora);
-            contentStream.endText();
-            
+            drawField(contentStream, margin, yPosition, "Data e Hora:", dataHora);
             yPosition -= 25;
-            
-            contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
-            contentStream.newLineAtOffset(margin, yPosition);
-            contentStream.showText("Metodo:");
-            contentStream.endText();
-            
-            contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA, 12);
-            contentStream.newLineAtOffset(margin + 150, yPosition);
-            contentStream.showText("Assinatura Digital (SHA256withRSA)");
-            contentStream.endText();
-            
+            drawField(contentStream, margin, yPosition, "Metodo:", "Assinatura Digital (SHA256withRSA)");
             yPosition -= 25;
+            drawField(contentStream, margin, yPosition, "Sistema:", "API Kurzgesagtt v1.0");
             
+            yPosition -= 50;
+
+            // QR Code de verificação
             contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
+            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 14);
             contentStream.newLineAtOffset(margin, yPosition);
-            contentStream.showText("Sistema:");
+            contentStream.showText("Verificacao de Autenticidade");
             contentStream.endText();
+            
+            yPosition -= 20;
             
             contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA, 12);
-            contentStream.newLineAtOffset(margin + 150, yPosition);
-            contentStream.showText("API Kurzgesagtt v1.0");
+            contentStream.setFont(PDType1Font.HELVETICA, 9);
+            contentStream.newLineAtOffset(margin, yPosition);
+            contentStream.showText("Escaneie o QR Code ou acesse o link para verificar a autenticidade desta assinatura.");
             contentStream.endText();
             
-            yPosition -= 60;
+            yPosition -= 15;
+
+            contentStream.beginText();
+            contentStream.setFont(PDType1Font.HELVETICA, 8);
+            contentStream.newLineAtOffset(margin, yPosition);
+            contentStream.showText("Link: " + verificationUrl);
+            contentStream.endText();
+
+            yPosition -= 10;
+
+            // Desenhar QR Code
+            if (qrCodeBytes != null && qrCodeBytes.length > 0) {
+                PDImageXObject qrImage = PDImageXObject.createFromByteArray(document, qrCodeBytes, "qrcode.png");
+                float qrSize = 120;
+                contentStream.drawImage(qrImage, margin, yPosition - qrSize, qrSize, qrSize);
+                yPosition -= (qrSize + 15);
+            }
             
+            yPosition -= 20;
+
             // Linha separadora
             contentStream.setLineWidth(1);
             contentStream.moveTo(margin, yPosition);
             contentStream.lineTo(550, yPosition);
             contentStream.stroke();
             
-            yPosition -= 30;
+            yPosition -= 25;
             
             // Aviso legal
             contentStream.beginText();
@@ -243,16 +204,6 @@ public class PdfMemorySignService {
             contentStream.showText("A assinatura digital garante a integridade e autenticidade do documento.");
             contentStream.endText();
             
-            yPosition -= 15;
-            
-            contentStream.beginText();
-            contentStream.setFont(PDType1Font.HELVETICA_OBLIQUE, 8);
-            contentStream.newLineAtOffset(margin, yPosition);
-            contentStream.showText("Assinado eletronicamente via API Kurzgesagtt. Para verificacao, entre em contato com o signatario.");
-            contentStream.endText();
-            
-            yPosition -= 40;
-            
             // Rodapé
             contentStream.beginText();
             contentStream.setFont(PDType1Font.HELVETICA, 8);
@@ -262,6 +213,19 @@ public class PdfMemorySignService {
             
             contentStream.close();
         }
+    }
+
+    private static void drawField(PDPageContentStream cs, float margin, float y, String label, String value) throws IOException {
+        cs.beginText();
+        cs.setFont(PDType1Font.HELVETICA_BOLD, 12);
+        cs.newLineAtOffset(margin, y);
+        cs.showText(label);
+        cs.endText();
+        cs.beginText();
+        cs.setFont(PDType1Font.HELVETICA, 12);
+        cs.newLineAtOffset(margin + 150, y);
+        cs.showText(value != null ? value : "");
+        cs.endText();
     }
     
     private static String formatarCPF(String cpf) {
