@@ -15,7 +15,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U digitalsign"]
+      test: ["CMD-SHELL", "pg_isready -U digitalsign -d digitalsign"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -60,7 +60,7 @@ services:
       - "8080:8080"
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     networks:
       - app-network
 
