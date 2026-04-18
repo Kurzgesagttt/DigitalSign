@@ -90,7 +90,7 @@ public class PdfSignController {
             return new ResponseEntity<>(signedPdf, headers, HttpStatus.OK);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("erro", "Erro ao assinar PDF: " + e.getMessage()));
+                    .body(Map.of("erro", "Erro interno ao assinar o PDF. Tente novamente."));
         }
     }
 }
