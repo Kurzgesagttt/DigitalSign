@@ -2,6 +2,7 @@ package com.Kurzgesagtt.DigitalSignature.controller;
 
 import com.Kurzgesagtt.DigitalSignature.model.Usuario;
 import com.Kurzgesagtt.DigitalSignature.repository.UsuarioRepository;
+import com.Kurzgesagtt.DigitalSignature.security.LoginRateLimiter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,9 @@ public class AuthController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private LoginRateLimiter loginRateLimiter;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
@@ -79,8 +83,18 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("erro", "Email e senha são obrigatórios."));
         }
 
-        var optUsuario = usuarioRepository.findByEmail(request.email.trim().toLowerCase());
+        String emailNormalizado = request.email.trim().toLowerCase();
+
+        if (loginRateLimiter.isBlocked(emailNormalizado)) {
+            long segundos = loginRateLimiter.segundosRestantes(emailNormalizado);
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(
+                    Map.of("erro", "Muitas tentativas de login. Tente novamente em " + segundos + " segundos.")
+            );
+        }
+
+        var optUsuario = usuarioRepository.findByEmail(emailNormalizado);
         if (optUsuario.isEmpty()) {
+            loginRateLimiter.registrarFalha(emailNormalizado);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("erro", "Email ou senha incorretos."));
         }
 
@@ -91,15 +105,17 @@ public class AuthController {
         }
 
         if (!passwordEncoder.matches(request.senha, usuario.getSenha())) {
+            loginRateLimiter.registrarFalha(emailNormalizado);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("erro", "Email ou senha incorretos."));
         }
+
+        loginRateLimiter.registrarSucesso(emailNormalizado);
 
         return ResponseEntity.ok(Map.of(
                 "mensagem", "Login realizado com sucesso.",
                 "id", usuario.getId(),
                 "nome", usuario.getNomeCompleto(),
-                "email", usuario.getEmail(),
-                "cpf", usuario.getCpf()
+                "email", usuario.getEmail()
         ));
     }
 
