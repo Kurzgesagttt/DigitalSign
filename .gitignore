@@ -60,9 +60,13 @@ yarn-error.log*
 pnpm-debug.log*
 .pnp.*
 .yarn/
+.vite/
+coverage/
+*.tsbuildinfo
 
 # ===== JAVA/MAVEN =====
 target/
+${project.build.directory}/
 *.class
 *.jar
 *.war
@@ -102,3 +106,7 @@ ENV/
 
 # ===== RAILWAY/DEPLOY =====
 .railway/
+
+# ===== DOCUMENTAÇÃO PRIVADA (Operacional) =====
+docs/
+

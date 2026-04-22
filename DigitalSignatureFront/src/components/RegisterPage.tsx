@@ -24,6 +24,7 @@ export const RegisterPage: React.FC<Props> = ({ onRegister }) => {
     dataNascimento: '',
     senha: '',
   });
+  const [consentimento, setConsentimento] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -42,6 +43,7 @@ export const RegisterPage: React.FC<Props> = ({ onRegister }) => {
         ...form,
         cpf: form.cpf.replace(/\D/g, ''),
         telefone: form.telefone.replace(/\D/g, ''),
+        consentimento,
       });
       onRegister({ id: res.data.id, nome: res.data.nome, email: res.data.email, cpf: form.cpf.replace(/\D/g, '') });
       navigate('/');
@@ -119,8 +121,24 @@ export const RegisterPage: React.FC<Props> = ({ onRegister }) => {
             required
             style={inputStyle}
           />
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+            <input
+              type="checkbox"
+              checked={consentimento}
+              onChange={(e) => setConsentimento(e.target.checked)}
+              required
+              style={{ marginTop: '2px', accentColor: 'var(--accent)', flexShrink: 0 }}
+            />
+            <span>
+              Li e concordo com os <strong>Termos de Uso</strong> e a{' '}
+              <strong>Política de Privacidade</strong>. Autorizo o tratamento dos meus
+              dados pessoais (nome, e-mail, CPF, telefone e data de nascimento) para fins
+              de autenticação e assinatura digital, conforme a{' '}
+              <strong>LGPD (Lei 13.709/2018)</strong>.
+            </span>
+          </label>
         </div>
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={loading || !consentimento}>
           {loading ? 'Cadastrando...' : 'Cadastrar'}
         </button>
         {error && <div className="error">{error}</div>}
