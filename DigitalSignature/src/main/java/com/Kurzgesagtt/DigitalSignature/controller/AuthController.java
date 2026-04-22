@@ -115,7 +115,8 @@ public class AuthController {
                 "mensagem", "Login realizado com sucesso.",
                 "id", usuario.getId(),
                 "nome", usuario.getNomeCompleto(),
-                "email", usuario.getEmail()
+                "email", usuario.getEmail(),
+                "cpf", usuario.getCpf()
         ));
     }
 
