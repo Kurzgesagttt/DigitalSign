@@ -1,11 +1,11 @@
 package com.Kurzgesagtt.DigitalSignature.controller;
 
 import com.Kurzgesagtt.DigitalSignature.model.SignatureRecord;
+import com.Kurzgesagtt.DigitalSignature.model.SignatureStatus;
+import com.Kurzgesagtt.DigitalSignature.model.Usuario;
 import com.Kurzgesagtt.DigitalSignature.repository.SignatureRecordRepository;
-import com.Kurzgesagtt.DigitalSignature.services.KeyGenerator;
-import com.Kurzgesagtt.DigitalSignature.services.PdfMemorySignService;
-import com.Kurzgesagtt.DigitalSignature.services.QrCodeService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.Kurzgesagtt.DigitalSignature.services.*;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -22,65 +22,80 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/v1")
 public class PdfSignController {
-
-    @Autowired
-    PdfMemorySignService signService;
-
-    @Autowired
-    private SignatureRecordRepository signatureRecordRepository;
-
-    @Autowired
-    private QrCodeService qrCodeService;
+    private final SignatureRecordRepository signatureRecordRepository;
+    private final QrCodeService qrCodeService;
+    private final AuthenticatedUserService authenticatedUserService;
+    private final HashService hashService;
+    private final AuditService auditService;
+    private final RequestMetadataService requestMetadataService;
 
     @Value("${app.base-url}")
     private String baseUrl;
 
+    public PdfSignController(
+            SignatureRecordRepository signatureRecordRepository,
+            QrCodeService qrCodeService,
+            AuthenticatedUserService authenticatedUserService,
+            HashService hashService,
+            AuditService auditService,
+            RequestMetadataService requestMetadataService
+    ) {
+        this.signatureRecordRepository = signatureRecordRepository;
+        this.qrCodeService = qrCodeService;
+        this.authenticatedUserService = authenticatedUserService;
+        this.hashService = hashService;
+        this.auditService = auditService;
+        this.requestMetadataService = requestMetadataService;
+    }
+
     @GetMapping("/sign")
     public String index() {
-        return "Use o método POST para enviar o PDF a ser assinado.";
+        return "Use o metodo POST autenticado para enviar o PDF a ser assinado.";
     }
 
     @PostMapping("/sign")
-    public ResponseEntity<?> signPdf(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("nome") String nome,
-            @RequestParam("email") String email,
-            @RequestParam("cpf") String cpf
-    ) {
+    public ResponseEntity<?> signPdf(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
+        Usuario usuario = authenticatedUserService.getCurrentUser();
         try {
-            String cpfLimpo = cpf.replaceAll("\\D", "");
-            if (cpfLimpo.length() != 11) {
-                return ResponseEntity.badRequest().body(Map.of("erro", "CPF inválido."));
+            if (file == null || file.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("erro", "Arquivo PDF e obrigatorio."));
+            }
+            if (!MediaType.APPLICATION_PDF_VALUE.equalsIgnoreCase(file.getContentType())) {
+                return ResponseEntity.badRequest().body(Map.of("erro", "Envie um arquivo PDF valido."));
             }
 
-            // Gera código de verificação único
-            String verificationCode = UUID.randomUUID().toString().substring(0, 8);
+            byte[] originalPdf = file.getBytes();
+            String verificationCode = generateVerificationCode();
             String verificationUrl = baseUrl + "/verificar/" + verificationCode;
-
-            // Gera QR Code
             byte[] qrCodeBytes = qrCodeService.generateQrCode(verificationUrl, 200, 200);
 
-            // Assina o PDF
             KeyPair keyPair = KeyGenerator.generateKeyPair();
             byte[] signedPdf = PdfMemorySignService.signPdf(
-                    file.getBytes(),
+                    originalPdf,
                     keyPair.getPrivate(),
-                    nome.trim(),
-                    email.trim().toLowerCase(),
-                    cpfLimpo,
+                    usuario.getNomeCompleto(),
+                    usuario.getEmail(),
+                    usuario.getCpf(),
                     verificationCode,
                     verificationUrl,
                     qrCodeBytes
             );
 
-            // Salva registro da assinatura
             SignatureRecord record = new SignatureRecord();
             record.setVerificationCode(verificationCode);
-            record.setSignatarioNome(nome.trim());
-            record.setSignatarioEmail(email.trim().toLowerCase());
-            record.setSignatarioCpf(cpfLimpo);
+            record.setUsuario(usuario);
+            record.setSignatarioNome(usuario.getNomeCompleto());
+            record.setSignatarioEmail(usuario.getEmail());
+            record.setSignatarioCpf(usuario.getCpf());
             record.setAssinadoEm(LocalDateTime.now());
+            record.setStatus(SignatureStatus.VALIDA);
+            record.setIpAddress(requestMetadataService.getClientIp(request));
+            record.setUserAgent(requestMetadataService.getUserAgent(request));
+            record.setOriginalPdfHash(hashService.sha256(originalPdf));
+            record.setSignedPdfHash(hashService.sha256(signedPdf));
             signatureRecordRepository.save(record);
+
+            auditService.record(usuario, "SIGNATURE_CREATED", "SUCCESS", "SIGNATURE", record.getId(), "PDF assinado.", request);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
@@ -89,8 +104,17 @@ public class PdfSignController {
 
             return new ResponseEntity<>(signedPdf, headers, HttpStatus.OK);
         } catch (Exception e) {
+            auditService.record(usuario, "SIGNATURE_CREATED", "FAILURE", "SIGNATURE", null, e.getMessage(), request);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("erro", "Erro ao assinar PDF: " + e.getMessage()));
+                    .body(Map.of("erro", "Erro ao assinar PDF."));
         }
+    }
+
+    private String generateVerificationCode() {
+        String code;
+        do {
+            code = UUID.randomUUID().toString().substring(0, 8);
+        } while (signatureRecordRepository.findByVerificationCode(code).isPresent());
+        return code;
     }
 }

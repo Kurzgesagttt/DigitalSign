@@ -1,18 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-
-const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-
-interface User {
-  id: number;
-  nome: string;
-  email: string;
-  cpf: string;
-}
+import { api, getApiErrorMessage, type AuthPayload } from '../api';
 
 interface Props {
-  onRegister: (user: User) => void;
+  onRegister: (auth: AuthPayload) => void;
 }
 
 export const RegisterPage: React.FC<Props> = ({ onRegister }) => {
@@ -38,16 +29,15 @@ export const RegisterPage: React.FC<Props> = ({ onRegister }) => {
     setError(null);
 
     try {
-      const res = await axios.post(`${API}/v1/auth/register`, {
+      const res = await api.post('/v1/auth/register', {
         ...form,
         cpf: form.cpf.replace(/\D/g, ''),
         telefone: form.telefone.replace(/\D/g, ''),
       });
-      onRegister({ id: res.data.id, nome: res.data.nome, email: res.data.email, cpf: form.cpf.replace(/\D/g, '') });
+      onRegister(res.data as AuthPayload);
       navigate('/');
-    } catch (err: any) {
-      const msg = err?.response?.data?.erro;
-      setError(msg || 'Erro ao cadastrar.');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Erro ao cadastrar.'));
     } finally {
       setLoading(false);
     }

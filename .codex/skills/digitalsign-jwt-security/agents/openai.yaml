@@ -1,0 +1,4 @@
+interface:
+  display_name: "JWT Security for DigitalSign"
+  short_description: "Implement and review JWT authentication for DigitalSign."
+  default_prompt: "Use this skill when adding, reviewing, or fixing JWT authentication, token validation, expiration, logout, refresh, authorization headers, or frontend token handling in DigitalSign."

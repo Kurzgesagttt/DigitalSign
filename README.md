@@ -95,6 +95,9 @@ Todas as configurações podem ser sobrescritas via variáveis de ambiente:
 | `SERVER_PORT` | `8080` | Porta do backend |
 | `APP_BASE_URL` | `http://localhost:5173` | URL base do frontend (usada nos QR Codes) |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:5174` | Origens CORS permitidas |
+| `JWT_SECRET` | `dev-only-change-this-secret-32-bytes-minimum` | Segredo de assinatura JWT; troque em produção |
+| `JWT_EXPIRATION_SECONDS` | `86400` | Tempo de validade do token |
+| `ADMIN_BOOTSTRAP_EMAIL` | vazio | Promove para `ADMIN` um usuário já cadastrado com este email ao iniciar o backend |
 
 ### Frontend (`DigitalSignatureFront/.env`)
 
@@ -108,18 +111,60 @@ Todas as configurações podem ser sobrescritas via variáveis de ambiente:
 2. Crie uma conta (nome, email, telefone, CPF, data de nascimento, senha)
 3. Faça login
 4. Faça upload de um PDF e clique em "Assinar PDF"
-5. O PDF assinado terá uma página de certificado com um **QR Code de verificação**
-6. Qualquer pessoa que escanear o QR Code pode confirmar a identidade do assinante informando CPF e email
+5. O backend usa os dados do usuário autenticado para assinar o PDF
+6. O PDF assinado terá uma página de certificado com um **QR Code de verificação**
+7. Qualquer pessoa que escanear o QR Code pode confirmar a identidade do assinante informando CPF e email
+
+## Admin
+
+Para criar o primeiro admin em ambiente local:
+
+1. Cadastre o usuário normalmente pelo frontend.
+2. Reinicie o backend com `ADMIN_BOOTSTRAP_EMAIL=email-do-usuario`.
+3. Faça login novamente; o link `Admin` aparecerá na navegação.
+
+O painel admin permite listar usuários, bloquear/desbloquear contas, consultar assinaturas, revogar assinaturas, ver métricas, consultar auditoria e exportar CSV de assinaturas/auditoria.
 
 ## Endpoints principais
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/v1/auth/register` | Cadastro de usuário |
-| `POST` | `/v1/auth/login` | Login |
-| `POST` | `/v1/sign` | Assinar PDF (multipart: file, nome, email, cpf) |
+| `POST` | `/v1/auth/register` | Cadastro de usuário, retorna JWT e role |
+| `POST` | `/v1/auth/login` | Login, retorna JWT e role |
+| `POST` | `/v1/sign` | Assinar PDF autenticado (multipart: file) |
 | `GET` | `/v1/verify/{code}` | Dados do assinante (mascarados) |
 | `POST` | `/v1/verify/{code}` | Confirmar identidade (body: cpf, email) |
+| `GET` | `/v1/admin/users` | Admin: listar usuários |
+| `PATCH` | `/v1/admin/users/{id}/block` | Admin: bloquear usuário |
+| `PATCH` | `/v1/admin/users/{id}/unblock` | Admin: desbloquear usuário |
+| `GET` | `/v1/admin/signatures` | Admin: consultar assinaturas |
+| `PATCH` | `/v1/admin/signatures/{id}/revoke` | Admin: revogar assinatura |
+| `GET` | `/v1/admin/metrics` | Admin: métricas básicas |
+| `GET` | `/v1/admin/audit-logs` | Admin: trilha de auditoria |
+| `GET` | `/v1/admin/reports/signatures.csv` | Admin: exportar assinaturas em CSV |
+| `GET` | `/v1/admin/reports/audit-logs.csv` | Admin: exportar auditoria em CSV |
+
+Rotas admin exigem JWT de usuário com role `ADMIN`.
+
+## Testes automatizados
+
+Backend:
+
+```bash
+cd DigitalSignature
+mvn test
+```
+
+Frontend:
+
+```bash
+cd DigitalSignatureFront
+npm test
+npm run lint
+npm run build
+```
+
+Os testes de backend usam Spring Boot, MockMvc, Spring Security Test e H2 em memória. Os testes de frontend usam Vitest, jsdom e Testing Library.
 
 ## Estrutura
 

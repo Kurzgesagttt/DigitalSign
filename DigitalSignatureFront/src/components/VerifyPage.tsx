@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
-
-const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+import { api } from '../api';
 
 interface VerifyData {
   valido: boolean;
@@ -10,6 +8,7 @@ interface VerifyData {
   email?: string;
   cpf?: string;
   assinadoEm?: string;
+  status?: string;
   erro?: string;
 }
 
@@ -26,7 +25,7 @@ export const VerifyPage: React.FC = () => {
 
   useEffect(() => {
     if (!code) return;
-    axios.get(`${API}/v1/verify/${code}`)
+    api.get(`/v1/verify/${code}`)
       .then(res => setData(res.data))
       .catch(() => setData({ valido: false, erro: 'Erro ao verificar assinatura.' }))
       .finally(() => setLoading(false));
@@ -37,7 +36,7 @@ export const VerifyPage: React.FC = () => {
     setConfirming(true);
     setConfirmResult(null);
     try {
-      const res = await axios.post(`${API}/v1/verify/${code}`, {
+      const res = await api.post(`/v1/verify/${code}`, {
         cpf: cpf.replace(/\D/g, ''),
         email: email.trim().toLowerCase(),
       });
@@ -76,6 +75,7 @@ export const VerifyPage: React.FC = () => {
         <div><strong style={{ color: 'var(--text-secondary)' }}>Email:</strong> {data.email}</div>
         <div><strong style={{ color: 'var(--text-secondary)' }}>CPF:</strong> {data.cpf}</div>
         <div><strong style={{ color: 'var(--text-secondary)' }}>Data:</strong> {data.assinadoEm}</div>
+        <div><strong style={{ color: 'var(--text-secondary)' }}>Status:</strong> {data.status}</div>
       </div>
 
       <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '1.5rem 0' }} />

@@ -1,18 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-
-const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-
-interface User {
-  id: number;
-  nome: string;
-  email: string;
-  cpf: string;
-}
+import { api, getApiErrorMessage, type AuthPayload } from '../api';
 
 interface Props {
-  onLogin: (user: User) => void;
+  onLogin: (auth: AuthPayload) => void;
 }
 
 export const LoginPage: React.FC<Props> = ({ onLogin }) => {
@@ -28,12 +19,12 @@ export const LoginPage: React.FC<Props> = ({ onLogin }) => {
     setError(null);
 
     try {
-      const res = await axios.post(`${API}/v1/auth/login`, { email, senha });
-      onLogin({ id: res.data.id, nome: res.data.nome, email: res.data.email, cpf: res.data.cpf });
+      const res = await api.post('/v1/auth/login', { email, senha });
+      const auth = res.data as AuthPayload;
+      onLogin(auth);
       navigate('/');
-    } catch (err: any) {
-      const msg = err?.response?.data?.erro;
-      setError(msg || 'Erro ao fazer login.');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Erro ao fazer login.'));
     } finally {
       setLoading(false);
     }

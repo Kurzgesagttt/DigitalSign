@@ -30,6 +30,17 @@ public class Usuario {
     @Column(nullable = false)
     private String senha;
 
+    @Enumerated(EnumType.STRING)
+    private UserRole role = UserRole.USER;
+
+    private boolean bloqueado = false;
+
+    private String bloqueadoMotivo;
+
+    private Long bloqueadoPorUsuarioId;
+
+    private LocalDateTime bloqueadoEm;
+
     @Column(nullable = false)
     private LocalDateTime criadoEm = LocalDateTime.now();
 
@@ -55,6 +66,21 @@ public class Usuario {
 
     public String getSenha() { return senha; }
     public void setSenha(String senha) { this.senha = senha; }
+
+    public UserRole getRole() { return role != null ? role : UserRole.USER; }
+    public void setRole(UserRole role) { this.role = role; }
+
+    public boolean isBloqueado() { return bloqueado; }
+    public void setBloqueado(boolean bloqueado) { this.bloqueado = bloqueado; }
+
+    public String getBloqueadoMotivo() { return bloqueadoMotivo; }
+    public void setBloqueadoMotivo(String bloqueadoMotivo) { this.bloqueadoMotivo = bloqueadoMotivo; }
+
+    public Long getBloqueadoPorUsuarioId() { return bloqueadoPorUsuarioId; }
+    public void setBloqueadoPorUsuarioId(Long bloqueadoPorUsuarioId) { this.bloqueadoPorUsuarioId = bloqueadoPorUsuarioId; }
+
+    public LocalDateTime getBloqueadoEm() { return bloqueadoEm; }
+    public void setBloqueadoEm(LocalDateTime bloqueadoEm) { this.bloqueadoEm = bloqueadoEm; }
 
     public LocalDateTime getCriadoEm() { return criadoEm; }
     public void setCriadoEm(LocalDateTime criadoEm) { this.criadoEm = criadoEm; }
