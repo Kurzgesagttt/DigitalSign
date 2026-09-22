@@ -6,10 +6,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class RequestMetadataService {
     public String getClientIp(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
         return request.getRemoteAddr();
     }
 

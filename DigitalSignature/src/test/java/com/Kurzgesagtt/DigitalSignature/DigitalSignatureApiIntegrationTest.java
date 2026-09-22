@@ -9,6 +9,8 @@ import com.Kurzgesagtt.DigitalSignature.repository.SignatureRecordRepository;
 import com.Kurzgesagtt.DigitalSignature.repository.UsuarioRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.pdfbox.pdmodel.interactive.digitalsignature.PDSignature;
+import org.bouncycastle.cms.CMSSignedData;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.junit.jupiter.api.BeforeEach;
@@ -77,7 +79,8 @@ class DigitalSignatureApiIntegrationTest {
                         .content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.role").value("USER"))
-                .andExpect(jsonPath("$.token").isString());
+                .andExpect(jsonPath("$.token").isString())
+                .andExpect(jsonPath("$.cpf").doesNotExist());
 
         Usuario saved = usuarioRepository.findByEmail("lucas@example.com").orElseThrow();
         assertThat(saved.getRole()).isEqualTo(UserRole.USER);
@@ -106,6 +109,9 @@ class DigitalSignatureApiIntegrationTest {
                 .andExpect(jsonPath("$.content").isArray());
 
         assertThat(user.getRole()).isEqualTo(UserRole.USER);
+
+        mockMvc.perform(get("/rota-futura"))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -141,7 +147,7 @@ class DigitalSignatureApiIntegrationTest {
                 samplePdf()
         );
 
-        mockMvc.perform(multipart("/v1/sign")
+        byte[] signedPdf = mockMvc.perform(multipart("/v1/sign")
                         .file(file)
                         .header("Authorization", "Bearer " + token)
                         .header("User-Agent", "JUnit")
@@ -151,7 +157,8 @@ class DigitalSignatureApiIntegrationTest {
                         }))
                 .andExpect(status().isOk())
                 .andExpect(header().exists("X-Verification-Code"))
-                .andExpect(content().contentType(MediaType.APPLICATION_PDF));
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andReturn().getResponse().getContentAsByteArray();
 
         SignatureRecord record = signatureRecordRepository.findAll().get(0);
         assertThat(record.getUsuario().getId()).isEqualTo(user.getId());
@@ -159,6 +166,12 @@ class DigitalSignatureApiIntegrationTest {
         assertThat(record.getStatus()).isEqualTo(SignatureStatus.VALIDA);
         assertThat(record.getOriginalPdfHash()).hasSize(64);
         assertThat(record.getSignedPdfHash()).hasSize(64);
+        assertThat(record.getVerificationCode()).matches("^[A-Za-z0-9_-]{43}$");
+        try (PDDocument document = PDDocument.load(signedPdf)) {
+            PDSignature signature = document.getSignatureDictionaries().get(0);
+            CMSSignedData cms = new CMSSignedData(signature.getContents(signedPdf));
+            assertThat(cms.getSignerInfos().getSigners()).hasSize(1);
+        }
     }
 
     @Test
@@ -178,7 +191,20 @@ class DigitalSignatureApiIntegrationTest {
         mockMvc.perform(get("/v1/verify/abc12345"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.valido").value(false))
-                .andExpect(jsonPath("$.status").value("REVOGADA"));
+                .andExpect(jsonPath("$.status").value("REVOGADA"))
+                .andExpect(jsonPath("$.nome").doesNotExist())
+                .andExpect(jsonPath("$.email").doesNotExist())
+                .andExpect(jsonPath("$.cpf").doesNotExist());
+    }
+
+    @Test
+    void signRejectsNonPdfContentEvenWhenClientClaimsPdf() throws Exception {
+        Usuario user = createUser("signer@example.com", "12345678901", UserRole.USER);
+        String token = login(user.getEmail(), "secret123");
+        MockMultipartFile file = new MockMultipartFile("file", "falso.pdf", MediaType.APPLICATION_PDF_VALUE, "nao e um pdf".getBytes());
+
+        mockMvc.perform(multipart("/v1/sign").file(file).header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest());
     }
 
     private Usuario createUser(String email, String cpf, UserRole role) {

@@ -15,11 +15,11 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<?> notFound(NoSuchElementException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("erro", ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("erro", "Recurso nao encontrado."));
     }
 
     @ExceptionHandler({DateTimeParseException.class, IllegalArgumentException.class, MethodArgumentNotValidException.class})
     public ResponseEntity<?> badRequest(Exception ex) {
-        return ResponseEntity.badRequest().body(Map.of("erro", ex.getMessage()));
+        return ResponseEntity.badRequest().body(Map.of("erro", "Requisicao invalida."));
     }
 }

@@ -35,7 +35,7 @@ public class AuditService {
         log.setResult(result);
         log.setTargetType(targetType);
         log.setTargetId(targetId);
-        log.setDetails(truncate(details));
+        log.setDetails(redactAndTruncate(details));
         if (request != null) {
             log.setIpAddress(requestMetadataService.getClientIp(request));
             log.setUserAgent(requestMetadataService.getUserAgent(request));
@@ -43,10 +43,13 @@ public class AuditService {
         auditLogRepository.save(log);
     }
 
-    private String truncate(String value) {
+    private String redactAndTruncate(String value) {
         if (value == null) {
             return null;
         }
-        return value.length() > 1000 ? value.substring(0, 1000) : value;
+        String redacted = value
+                .replaceAll("(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}", "[email-redacted]")
+                .replaceAll("\\b\\d{3}\\D?\\d{3}\\D?\\d{3}\\D?\\d{2}\\b", "[cpf-redacted]");
+        return redacted.length() > 1000 ? redacted.substring(0, 1000) : redacted;
     }
 }

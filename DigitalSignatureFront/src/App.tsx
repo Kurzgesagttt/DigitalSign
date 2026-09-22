@@ -5,10 +5,10 @@ import { LoginPage } from './components/LoginPage';
 import { RegisterPage } from './components/RegisterPage';
 import { VerifyPage } from './components/VerifyPage';
 import { AdminPage } from './components/AdminPage';
-import { loadStoredAuth, setAuthToken, storeUser, type AuthPayload, type User } from './api';
+import { setAuthToken, type AuthPayload, type User } from './api';
 
 function App() {
-  const [user, setUser] = useState<User | null>(() => loadStoredAuth().user);
+  const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
 
   const handleAuth = (auth: AuthPayload) => {
@@ -16,18 +16,15 @@ function App() {
       id: auth.id,
       nome: auth.nome,
       email: auth.email,
-      cpf: auth.cpf,
       role: auth.role,
     };
     setUser(nextUser);
     setAuthToken(auth.token);
-    storeUser(nextUser);
   };
 
   const handleLogout = () => {
     setUser(null);
     setAuthToken(null);
-    storeUser(null);
     navigate('/login');
   };
 

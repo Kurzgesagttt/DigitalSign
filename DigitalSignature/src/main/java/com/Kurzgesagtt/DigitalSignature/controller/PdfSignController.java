@@ -15,9 +15,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.security.KeyPair;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Base64;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1")
@@ -28,6 +30,9 @@ public class PdfSignController {
     private final HashService hashService;
     private final AuditService auditService;
     private final RequestMetadataService requestMetadataService;
+    private final PdfValidationService pdfValidationService;
+    private final RateLimitService rateLimitService;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -38,7 +43,9 @@ public class PdfSignController {
             AuthenticatedUserService authenticatedUserService,
             HashService hashService,
             AuditService auditService,
-            RequestMetadataService requestMetadataService
+            RequestMetadataService requestMetadataService,
+            PdfValidationService pdfValidationService,
+            RateLimitService rateLimitService
     ) {
         this.signatureRecordRepository = signatureRecordRepository;
         this.qrCodeService = qrCodeService;
@@ -46,6 +53,8 @@ public class PdfSignController {
         this.hashService = hashService;
         this.auditService = auditService;
         this.requestMetadataService = requestMetadataService;
+        this.pdfValidationService = pdfValidationService;
+        this.rateLimitService = rateLimitService;
     }
 
     @GetMapping("/sign")
@@ -57,6 +66,9 @@ public class PdfSignController {
     public ResponseEntity<?> signPdf(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
         Usuario usuario = authenticatedUserService.getCurrentUser();
         try {
+            if (!rateLimitService.allowSigning(request)) {
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("erro", "Muitas tentativas. Tente novamente mais tarde."));
+            }
             if (file == null || file.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("erro", "Arquivo PDF e obrigatorio."));
             }
@@ -65,6 +77,7 @@ public class PdfSignController {
             }
 
             byte[] originalPdf = file.getBytes();
+            pdfValidationService.validate(originalPdf);
             String verificationCode = generateVerificationCode();
             String verificationUrl = baseUrl + "/verificar/" + verificationCode;
             byte[] qrCodeBytes = qrCodeService.generateQrCode(verificationUrl, 200, 200);
@@ -72,10 +85,7 @@ public class PdfSignController {
             KeyPair keyPair = KeyGenerator.generateKeyPair();
             byte[] signedPdf = PdfMemorySignService.signPdf(
                     originalPdf,
-                    keyPair.getPrivate(),
-                    usuario.getNomeCompleto(),
-                    usuario.getEmail(),
-                    usuario.getCpf(),
+                    keyPair,
                     verificationCode,
                     verificationUrl,
                     qrCodeBytes
@@ -87,7 +97,7 @@ public class PdfSignController {
             record.setSignatarioNome(usuario.getNomeCompleto());
             record.setSignatarioEmail(usuario.getEmail());
             record.setSignatarioCpf(usuario.getCpf());
-            record.setAssinadoEm(LocalDateTime.now());
+            record.setAssinadoEm(LocalDateTime.now(ZoneOffset.UTC));
             record.setStatus(SignatureStatus.VALIDA);
             record.setIpAddress(requestMetadataService.getClientIp(request));
             record.setUserAgent(requestMetadataService.getUserAgent(request));
@@ -104,16 +114,20 @@ public class PdfSignController {
 
             return new ResponseEntity<>(signedPdf, headers, HttpStatus.OK);
         } catch (Exception e) {
-            auditService.record(usuario, "SIGNATURE_CREATED", "FAILURE", "SIGNATURE", null, e.getMessage(), request);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("erro", "Erro ao assinar PDF."));
+            auditService.record(usuario, "SIGNATURE_CREATED", "FAILURE", "SIGNATURE", null, "PROCESSING_ERROR", request);
+            if (e instanceof IllegalArgumentException) {
+                return ResponseEntity.badRequest().body(Map.of("erro", "Envie um PDF valido e nao protegido por senha."));
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("erro", "Erro ao assinar PDF."));
         }
     }
 
     private String generateVerificationCode() {
         String code;
         do {
-            code = UUID.randomUUID().toString().substring(0, 8);
+            byte[] randomBytes = new byte[32];
+            secureRandom.nextBytes(randomBytes);
+            code = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
         } while (signatureRecordRepository.findByVerificationCode(code).isPresent());
         return code;
     }

@@ -2,6 +2,7 @@ package com.Kurzgesagtt.DigitalSignature.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "signature_records")
@@ -28,7 +29,7 @@ public class SignatureRecord {
     private String signatarioCpf;
 
     @Column(nullable = false)
-    private LocalDateTime assinadoEm = LocalDateTime.now();
+    private LocalDateTime assinadoEm = LocalDateTime.now(ZoneOffset.UTC);
 
     @Enumerated(EnumType.STRING)
     private SignatureStatus status = SignatureStatus.VALIDA;

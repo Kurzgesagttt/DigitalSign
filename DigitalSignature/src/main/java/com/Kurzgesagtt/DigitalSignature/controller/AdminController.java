@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -74,10 +75,10 @@ public class AdminController {
         usuario.setBloqueado(true);
         usuario.setBloqueadoMotivo(request.motivo.trim());
         usuario.setBloqueadoPorUsuarioId(admin.getId());
-        usuario.setBloqueadoEm(LocalDateTime.now());
+        usuario.setBloqueadoEm(LocalDateTime.now(ZoneOffset.UTC));
         usuarioRepository.save(usuario);
 
-        auditService.record(admin, "USER_BLOCKED", "SUCCESS", "USUARIO", usuario.getId(), request.motivo, servletRequest);
+        auditService.record(admin, "USER_BLOCKED", "SUCCESS", "USUARIO", usuario.getId(), "ACCOUNT_BLOCKED", servletRequest);
         return ResponseEntity.ok(userResponse(usuario));
     }
 
@@ -131,10 +132,10 @@ public class AdminController {
         signature.setStatus(SignatureStatus.REVOGADA);
         signature.setRevogacaoMotivo(request.motivo.trim());
         signature.setRevogadoPorUsuarioId(admin.getId());
-        signature.setRevogadoEm(LocalDateTime.now());
+        signature.setRevogadoEm(LocalDateTime.now(ZoneOffset.UTC));
         signatureRecordRepository.save(signature);
 
-        auditService.record(admin, "SIGNATURE_REVOKED", "SUCCESS", "SIGNATURE", signature.getId(), request.motivo, servletRequest);
+        auditService.record(admin, "SIGNATURE_REVOKED", "SUCCESS", "SIGNATURE", signature.getId(), "SIGNATURE_REVOKED", servletRequest);
         return ResponseEntity.ok(signatureResponse(signature));
     }
 
@@ -336,6 +337,9 @@ public class AdminController {
 
     private String csvEscape(String value) {
         String safeValue = nullToEmpty(value);
+        if (!safeValue.isEmpty() && "=+-@".indexOf(safeValue.charAt(0)) >= 0) {
+            safeValue = "'" + safeValue;
+        }
         if (safeValue.contains(",") || safeValue.contains("\"") || safeValue.contains("\n") || safeValue.contains("\r")) {
             return "\"" + safeValue.replace("\"", "\"\"") + "\"";
         }

@@ -2,6 +2,7 @@ package com.Kurzgesagtt.DigitalSignature.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "audit_logs")
@@ -39,7 +40,7 @@ public class AuditLog {
     private String details;
 
     @Column(nullable = false)
-    private LocalDateTime occurredAt = LocalDateTime.now();
+    private LocalDateTime occurredAt = LocalDateTime.now(ZoneOffset.UTC);
 
     public AuditLog() {}
 

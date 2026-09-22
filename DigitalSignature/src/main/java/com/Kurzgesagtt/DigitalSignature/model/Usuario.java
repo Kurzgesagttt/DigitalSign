@@ -3,6 +3,7 @@ package com.Kurzgesagtt.DigitalSignature.model;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "usuarios")
@@ -42,7 +43,7 @@ public class Usuario {
     private LocalDateTime bloqueadoEm;
 
     @Column(nullable = false)
-    private LocalDateTime criadoEm = LocalDateTime.now();
+    private LocalDateTime criadoEm = LocalDateTime.now(ZoneOffset.UTC);
 
     public Usuario() {}
 

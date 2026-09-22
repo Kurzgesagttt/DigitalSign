@@ -16,6 +16,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.util.Map;
 
@@ -71,7 +72,7 @@ public class AuthController {
         usuario.setDataNascimento(request.dataNascimento);
         usuario.setSenha(passwordEncoder.encode(request.senha));
         usuario.setRole(UserRole.USER);
-        usuario.setCriadoEm(LocalDateTime.now());
+        usuario.setCriadoEm(LocalDateTime.now(ZoneOffset.UTC));
 
         usuarioRepository.save(usuario);
         auditService.record(usuario, "REGISTER", "SUCCESS", "USUARIO", usuario.getId(), "Usuario cadastrado.", servletRequest);
@@ -89,7 +90,7 @@ public class AuthController {
         String emailLimpo = request.email.trim().toLowerCase();
         var optUsuario = usuarioRepository.findByEmail(emailLimpo);
         if (optUsuario.isEmpty()) {
-            auditService.record(null, "LOGIN", "FAILURE", "USUARIO", null, "Email inexistente: " + emailLimpo, servletRequest);
+            auditService.record(null, "LOGIN", "FAILURE", "USUARIO", null, "INVALID_CREDENTIALS", servletRequest);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("erro", "Email ou senha incorretos."));
         }
 
@@ -114,7 +115,6 @@ public class AuthController {
                 "id", usuario.getId(),
                 "nome", usuario.getNomeCompleto(),
                 "email", usuario.getEmail(),
-                "cpf", usuario.getCpf(),
                 "role", usuario.getRole().name(),
                 "token", jwtService.generateToken(usuario)
         );

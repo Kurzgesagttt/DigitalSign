@@ -16,13 +16,16 @@ Sistema web para assinatura digital de documentos PDF com verificação por QR C
 Na raiz do projeto:
 
 ```bash
+cp .env.example .env
 docker compose up --build
 ```
 
+Antes de iniciar, preencha `POSTGRES_PASSWORD` e um `JWT_SECRET` aleatorio de pelo menos 32 bytes no arquivo `.env`, que nao deve ser versionado.
+
 Serviços disponíveis:
-- Frontend: `http://localhost:8080`
-- Backend (direto): `http://localhost:8081`
-- Banco PostgreSQL: `localhost:5432`
+Na stack Docker, frontend, backend e banco ficam apenas na rede interna do Compose.
+Em producao, configure o reverse proxy do Coolify para encaminhar para `frontend:8080`.
+Para desenvolvimento local, use a Opcao B abaixo ou um arquivo Compose de override com portas locais.
 
 Para parar:
 
@@ -49,7 +52,7 @@ docker compose up -d db
 Isso inicia um PostgreSQL na porta `5432` com:
 - **Database:** `digitalsign`
 - **Usuário:** `digitalsign`
-- **Senha:** `digitalsign123`
+- **Senha:** valor de `POSTGRES_PASSWORD` no arquivo `.env`
 
 ### 2. Iniciar o Backend (porta 8080)
 
@@ -76,8 +79,8 @@ O frontend ficará disponível em `http://localhost:5173`.
 
 - Erro de build dizendo que não encontrou `DigitalSignature/Dockerfile` ou `DigitalSignatureFront/Dockerfile`:
     atualize para a versão mais recente do repositório (esses arquivos devem existir).
-- Porta em uso (`5432`, `8080` ou `8081`):
-    pare processos locais que estejam usando essas portas ou altere no `docker-compose.yml`.
+- Falha ao acessar o frontend diretamente no host:
+    a stack principal nao publica portas; acesse pelo dominio configurado no Coolify ou use a Opcao B.
 - Cache quebrado após trocar de PC:
     use `docker compose down -v` e depois `docker compose build --no-cache`.
 
@@ -91,11 +94,11 @@ Todas as configurações podem ser sobrescritas via variáveis de ambiente:
 |---|---|---|
 | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/digitalsign` | URL do banco |
 | `SPRING_DATASOURCE_USERNAME` | `digitalsign` | Usuário do banco |
-| `SPRING_DATASOURCE_PASSWORD` | `digitalsign123` | Senha do banco |
+| `SPRING_DATASOURCE_PASSWORD` | sem fallback | Senha do banco; obrigatoria |
 | `SERVER_PORT` | `8080` | Porta do backend |
 | `APP_BASE_URL` | `http://localhost:5173` | URL base do frontend (usada nos QR Codes) |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:5174` | Origens CORS permitidas |
-| `JWT_SECRET` | `dev-only-change-this-secret-32-bytes-minimum` | Segredo de assinatura JWT; troque em produção |
+| `JWT_SECRET` | sem fallback | Segredo de assinatura JWT; obrigatorio e exclusivo por ambiente |
 | `JWT_EXPIRATION_SECONDS` | `86400` | Tempo de validade do token |
 | `ADMIN_BOOTSTRAP_EMAIL` | vazio | Promove para `ADMIN` um usuário já cadastrado com este email ao iniciar o backend |
 
@@ -133,7 +136,6 @@ O painel admin permite listar usuários, bloquear/desbloquear contas, consultar 
 | `POST` | `/v1/auth/login` | Login, retorna JWT e role |
 | `POST` | `/v1/sign` | Assinar PDF autenticado (multipart: file) |
 | `GET` | `/v1/verify/{code}` | Dados do assinante (mascarados) |
-| `POST` | `/v1/verify/{code}` | Confirmar identidade (body: cpf, email) |
 | `GET` | `/v1/admin/users` | Admin: listar usuários |
 | `PATCH` | `/v1/admin/users/{id}/block` | Admin: bloquear usuário |
 | `PATCH` | `/v1/admin/users/{id}/unblock` | Admin: desbloquear usuário |
