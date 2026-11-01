@@ -1,80 +1,66 @@
 package com.Kurzgesagtt.DigitalSignature.controller;
 
 import com.Kurzgesagtt.DigitalSignature.model.SignatureRecord;
+import com.Kurzgesagtt.DigitalSignature.model.SignatureStatus;
 import com.Kurzgesagtt.DigitalSignature.repository.SignatureRecordRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.Kurzgesagtt.DigitalSignature.services.AuditService;
+import com.Kurzgesagtt.DigitalSignature.services.RateLimitService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/verify")
 public class VerificationController {
+    private final SignatureRecordRepository signatureRecordRepository;
+    private final AuditService auditService;
+    private final RateLimitService rateLimitService;
 
-    @Autowired
-    private SignatureRecordRepository signatureRecordRepository;
+    public VerificationController(SignatureRecordRepository signatureRecordRepository, AuditService auditService, RateLimitService rateLimitService) {
+        this.signatureRecordRepository = signatureRecordRepository;
+        this.auditService = auditService;
+        this.rateLimitService = rateLimitService;
+    }
 
     @GetMapping("/{code}")
-    public ResponseEntity<?> verify(@PathVariable String code) {
+    public ResponseEntity<?> verify(@PathVariable String code, HttpServletRequest request) {
+        if (!rateLimitService.allowVerification(request)) {
+            return ResponseEntity.status(429).body(Map.of("valido", false, "erro", "Muitas tentativas. Tente novamente mais tarde."));
+        }
         if (code == null || code.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("valido", false, "erro", "Código inválido."));
+            return ResponseEntity.badRequest().body(Map.of("valido", false, "erro", "Codigo invalido."));
         }
 
         var optRecord = signatureRecordRepository.findByVerificationCode(code);
         if (optRecord.isEmpty()) {
-            return ResponseEntity.ok(Map.of("valido", false, "erro", "Assinatura não encontrada."));
+            auditService.record(null, "SIGNATURE_VERIFY", "NOT_FOUND", "SIGNATURE", null, "CODE_NOT_FOUND", request);
+            return ResponseEntity.ok(Map.of("valido", false, "erro", "Codigo nao localizado ou assinatura invalida."));
         }
 
         SignatureRecord record = optRecord.get();
-        String cpfMascarado = record.getSignatarioCpf().substring(0, 3) + ".***.***-"
-                + record.getSignatarioCpf().substring(9);
+        auditService.record(null, "SIGNATURE_VERIFY", "SUCCESS", "SIGNATURE", record.getId(), "Consulta publica.", request);
 
-        return ResponseEntity.ok(Map.of(
-                "valido", true,
-                "nome", record.getSignatarioNome(),
-                "email", record.getSignatarioEmail(),
-                "cpf", cpfMascarado,
-                "assinadoEm", record.getAssinadoEm().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))
-        ));
+        Map<String, Object> response = baseVerifyResponse(record);
+        if (record.getStatus() != SignatureStatus.VALIDA) {
+            response.put("valido", false);
+            response.put("erro", "Assinatura " + record.getStatus().name().toLowerCase() + ".");
+        }
+        return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/{code}")
-    public ResponseEntity<?> confirmIdentity(@PathVariable String code, @RequestBody ConfirmRequest request) {
-        if (code == null || code.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("confirmado", false, "erro", "Código inválido."));
-        }
-
-        var optRecord = signatureRecordRepository.findByVerificationCode(code);
-        if (optRecord.isEmpty()) {
-            return ResponseEntity.ok(Map.of("confirmado", false, "erro", "Assinatura não encontrada."));
-        }
-
-        SignatureRecord record = optRecord.get();
-        String cpfLimpo = request.cpf != null ? request.cpf.replaceAll("\\D", "") : "";
-        String emailLimpo = request.email != null ? request.email.trim().toLowerCase() : "";
-
-        boolean cpfConfere = cpfLimpo.equals(record.getSignatarioCpf());
-        boolean emailConfere = emailLimpo.equals(record.getSignatarioEmail());
-
-        if (cpfConfere && emailConfere) {
-            return ResponseEntity.ok(Map.of(
-                    "confirmado", true,
-                    "mensagem", "Identidade do assinante confirmada com sucesso!",
-                    "nome", record.getSignatarioNome(),
-                    "assinadoEm", record.getAssinadoEm().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))
-            ));
-        } else {
-            return ResponseEntity.ok(Map.of(
-                    "confirmado", false,
-                    "erro", "CPF ou email não conferem com o assinante."
-            ));
-        }
+    private Map<String, Object> baseVerifyResponse(SignatureRecord record) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("valido", record.getStatus() == SignatureStatus.VALIDA);
+        response.put("status", record.getStatus().name());
+        response.put("assinadoEm", formatDate(record));
+        return response;
     }
 
-    public static class ConfirmRequest {
-        public String cpf;
-        public String email;
+    private String formatDate(SignatureRecord record) {
+        return record.getAssinadoEm().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss 'UTC'"));
     }
 }

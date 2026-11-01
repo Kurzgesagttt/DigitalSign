@@ -1,31 +1,24 @@
 import { useState } from 'react';
 import axios from 'axios';
-
-const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+import { api } from '../api';
 
 interface SignPdfParams {
   file: File;
-  nome: string;
-  email: string;
-  cpf: string;
 }
 
 export function useSignPdf() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function signPdf({ file, nome, email, cpf }: SignPdfParams): Promise<void> {
+  async function signPdf({ file }: SignPdfParams): Promise<void> {
     setLoading(true);
     setError(null);
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('nome', nome);
-    formData.append('email', email);
-    formData.append('cpf', cpf);
 
     try {
-      const response = await axios.post(`${API}/v1/sign`, formData, {
+      const response = await api.post('/v1/sign', formData, {
         responseType: 'blob',
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -39,17 +32,20 @@ export function useSignPdf() {
       a.download = 'documento_assinado.pdf';
       a.click();
       window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      if (err?.response?.data instanceof Blob) {
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.data instanceof Blob) {
         try {
           const text = await err.response.data.text();
-          const json = JSON.parse(text);
+          const json = JSON.parse(text) as { erro?: string };
           setError(json.erro || 'Erro ao assinar PDF.');
         } catch {
           setError('Erro ao assinar PDF.');
         }
+      } else if (axios.isAxiosError(err)) {
+        const data = err.response?.data as { erro?: string } | undefined;
+        setError(data?.erro || 'Erro ao assinar PDF. Verifique se o backend esta rodando.');
       } else {
-        setError('Erro ao assinar PDF. Verifique se o backend está rodando.');
+        setError('Erro ao assinar PDF. Verifique se o backend esta rodando.');
       }
       console.error(err);
     } finally {

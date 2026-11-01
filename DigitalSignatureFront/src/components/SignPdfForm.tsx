@@ -2,13 +2,7 @@ import React, { useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 
 import { useSignPdf } from '../hooks/useSignPdf';
-
-interface User {
-  id: number;
-  nome: string;
-  email: string;
-  cpf: string;
-}
+import type { User } from '../api';
 
 interface Props {
   user: User;
@@ -26,7 +20,7 @@ export const SignPdfForm: React.FC<Props> = ({ user }) => {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (file) {
-      await signPdf({ file, nome: user.nome, email: user.email, cpf: user.cpf });
+      await signPdf({ file });
     }
   };
 
