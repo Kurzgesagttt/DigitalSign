@@ -45,6 +45,17 @@ public class Usuario {
     @Column(nullable = false)
     private LocalDateTime criadoEm = LocalDateTime.now(ZoneOffset.UTC);
 
+    /** LGPD Art. 7 — Registro explícito do consentimento do titular */
+    @Column(nullable = false)
+    private boolean consentimentoLGPD = false;
+
+    @Column
+    private LocalDateTime consentimentoEm;
+
+    /** LGPD Art. 18 inciso VI — Direito ao esquecimento (soft delete) */
+    @Column
+    private LocalDateTime deletadoEm;
+
     public Usuario() {}
 
     public Long getId() { return id; }
@@ -85,4 +96,15 @@ public class Usuario {
 
     public LocalDateTime getCriadoEm() { return criadoEm; }
     public void setCriadoEm(LocalDateTime criadoEm) { this.criadoEm = criadoEm; }
+
+    public boolean isConsentimentoLGPD() { return consentimentoLGPD; }
+    public void setConsentimentoLGPD(boolean consentimentoLGPD) { this.consentimentoLGPD = consentimentoLGPD; }
+
+    public LocalDateTime getConsentimentoEm() { return consentimentoEm; }
+    public void setConsentimentoEm(LocalDateTime consentimentoEm) { this.consentimentoEm = consentimentoEm; }
+
+    public LocalDateTime getDeletadoEm() { return deletadoEm; }
+    public void setDeletadoEm(LocalDateTime deletadoEm) { this.deletadoEm = deletadoEm; }
+
+    public boolean isAtivo() { return deletadoEm == null; }
 }

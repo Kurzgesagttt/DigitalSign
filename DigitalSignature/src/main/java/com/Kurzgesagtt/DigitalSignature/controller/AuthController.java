@@ -3,14 +3,20 @@ package com.Kurzgesagtt.DigitalSignature.controller;
 import com.Kurzgesagtt.DigitalSignature.model.UserRole;
 import com.Kurzgesagtt.DigitalSignature.model.Usuario;
 import com.Kurzgesagtt.DigitalSignature.repository.UsuarioRepository;
+<<<<<<< HEAD
 import com.Kurzgesagtt.DigitalSignature.services.AuditService;
 import com.Kurzgesagtt.DigitalSignature.services.JwtService;
 import jakarta.servlet.http.HttpServletRequest;
+=======
+import com.Kurzgesagtt.DigitalSignature.security.LoginRateLimiter;
+import org.springframework.beans.factory.annotation.Autowired;
+>>>>>>> origin/main
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+<<<<<<< HEAD
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -18,6 +24,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
+=======
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+>>>>>>> origin/main
 import java.util.Map;
 
 @RestController
@@ -40,6 +50,12 @@ public class AuthController {
         this.auditService = auditService;
     }
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private LoginRateLimiter loginRateLimiter;
+
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request, HttpServletRequest servletRequest) {
         if (request.nomeCompleto == null || request.nomeCompleto.isBlank()
@@ -51,18 +67,29 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("erro", "Todos os campos sao obrigatorios."));
         }
 
+        if (!Boolean.TRUE.equals(request.consentimento)) {
+            return ResponseEntity.badRequest().body(Map.of("erro", "É necessário aceitar os termos de uso e a política de privacidade (LGPD)."));
+        }
+
         String cpfLimpo = request.cpf.replaceAll("\\D", "");
         if (cpfLimpo.length() != 11) {
             return ResponseEntity.badRequest().body(Map.of("erro", "CPF invalido."));
         }
 
+<<<<<<< HEAD
         String emailLimpo = request.email.trim().toLowerCase();
         if (usuarioRepository.existsByEmail(emailLimpo)) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", "Email ja cadastrado."));
+=======
+        if (usuarioRepository.existsByEmail(request.email.trim().toLowerCase())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", "Email já cadastrado."));
+>>>>>>> origin/main
         }
         if (usuarioRepository.existsByCpf(cpfLimpo)) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", "CPF ja cadastrado."));
         }
+
+        LocalDateTime agora = LocalDateTime.now();
 
         Usuario usuario = new Usuario();
         usuario.setNomeCompleto(request.nomeCompleto.trim());
@@ -71,8 +98,14 @@ public class AuthController {
         usuario.setCpf(cpfLimpo);
         usuario.setDataNascimento(request.dataNascimento);
         usuario.setSenha(passwordEncoder.encode(request.senha));
+<<<<<<< HEAD
         usuario.setRole(UserRole.USER);
         usuario.setCriadoEm(LocalDateTime.now(ZoneOffset.UTC));
+=======
+        usuario.setCriadoEm(agora);
+        usuario.setConsentimentoLGPD(true);
+        usuario.setConsentimentoEm(agora);
+>>>>>>> origin/main
 
         usuarioRepository.save(usuario);
         auditService.record(usuario, "REGISTER", "SUCCESS", "USUARIO", usuario.getId(), "Usuario cadastrado.", servletRequest);
@@ -87,14 +120,30 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("erro", "Email e senha sao obrigatorios."));
         }
 
+<<<<<<< HEAD
         String emailLimpo = request.email.trim().toLowerCase();
         var optUsuario = usuarioRepository.findByEmail(emailLimpo);
         if (optUsuario.isEmpty()) {
             auditService.record(null, "LOGIN", "FAILURE", "USUARIO", null, "INVALID_CREDENTIALS", servletRequest);
+=======
+        String emailNormalizado = request.email.trim().toLowerCase();
+
+        if (loginRateLimiter.isBlocked(emailNormalizado)) {
+            long segundos = loginRateLimiter.segundosRestantes(emailNormalizado);
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(
+                    Map.of("erro", "Muitas tentativas de login. Tente novamente em " + segundos + " segundos.")
+            );
+        }
+
+        var optUsuario = usuarioRepository.findByEmail(emailNormalizado);
+        if (optUsuario.isEmpty()) {
+            loginRateLimiter.registrarFalha(emailNormalizado);
+>>>>>>> origin/main
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("erro", "Email ou senha incorretos."));
         }
 
         Usuario usuario = optUsuario.get();
+<<<<<<< HEAD
         if (usuario.isBloqueado()) {
             auditService.record(usuario, "LOGIN", "BLOCKED", "USUARIO", usuario.getId(), "Conta bloqueada.", servletRequest);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("erro", "Conta bloqueada."));
@@ -112,6 +161,22 @@ public class AuthController {
     private Map<String, Object> authResponse(String mensagem, Usuario usuario) {
         return Map.of(
                 "mensagem", mensagem,
+=======
+
+        if (!usuario.isAtivo()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("erro", "Conta desativada. Entre em contato com o suporte."));
+        }
+
+        if (!passwordEncoder.matches(request.senha, usuario.getSenha())) {
+            loginRateLimiter.registrarFalha(emailNormalizado);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("erro", "Email ou senha incorretos."));
+        }
+
+        loginRateLimiter.registrarSucesso(emailNormalizado);
+
+        return ResponseEntity.ok(Map.of(
+                "mensagem", "Login realizado com sucesso.",
+>>>>>>> origin/main
                 "id", usuario.getId(),
                 "nome", usuario.getNomeCompleto(),
                 "email", usuario.getEmail(),
@@ -133,16 +198,6 @@ public class AuthController {
         return senhaLegadaConfere;
     }
 
-    private String hashSenha(String senha) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(senha.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("Erro ao gerar hash da senha", e);
-        }
-    }
-
     public static class RegisterRequest {
         public String nomeCompleto;
         public String email;
@@ -150,6 +205,7 @@ public class AuthController {
         public String cpf;
         public LocalDate dataNascimento;
         public String senha;
+        public Boolean consentimento;
     }
 
     public static class LoginRequest {

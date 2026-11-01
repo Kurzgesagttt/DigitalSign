@@ -2,31 +2,38 @@ services:
 
   db:
     image: postgres:16-alpine
-    container_name: digitalsign-db
     restart: unless-stopped
+
     environment:
       POSTGRES_DB: digitalsign
       POSTGRES_USER: digitalsign
+<<<<<<< HEAD
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD em .env}
     expose:
       - "5432"
+=======
+      POSTGRES_PASSWORD: digitalsign123
+
+>>>>>>> origin/main
     volumes:
       - pgdata:/var/lib/postgresql/data
-    networks:
-      - app-network
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U digitalsign -d digitalsign"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+
   backend:
-    build: 
+    build:
       context: ./DigitalSignature
       dockerfile: Dockerfile
-    container_name: digitalsign-backend
+
     restart: unless-stopped
+
     environment:
+<<<<<<< HEAD
       - SERVER_PORT=8080
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/digitalsign
       - SPRING_DATASOURCE_USERNAME=digitalsign
@@ -36,18 +43,37 @@ services:
       - CORS_ALLOWED_ORIGINS=http://localhost:8080,http://localhost:5173
     expose:
       - "8080"
+=======
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/digitalsign
+      SPRING_DATASOURCE_USERNAME: digitalsign
+      SPRING_DATASOURCE_PASSWORD: digitalsign123
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+
+    expose:
+      - "8080"
+
+>>>>>>> origin/main
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - app-network
-    hostname: backend
+
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/actuator/health"
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
+
 
   frontend:
     build:
@@ -55,19 +81,29 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: /api
-    container_name: digitalsign-frontend
+
     restart: unless-stopped
+<<<<<<< HEAD
     expose:
       - "8080"
+=======
+
+    expose:
+      - "3000"
+
+>>>>>>> origin/main
     depends_on:
       backend:
         condition: service_started
-    networks:
-      - app-network
+
 
 volumes:
+<<<<<<< HEAD
   pgdata:
 
 networks:
   app-network:
     driver: bridge
+=======
+  pgdata:
+>>>>>>> origin/main

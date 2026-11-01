@@ -3,6 +3,12 @@ package com.Kurzgesagtt.DigitalSignature.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+<<<<<<< HEAD
+=======
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.util.unit.DataSize;
+>>>>>>> origin/main
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -26,4 +32,21 @@ public class AppConfig {
             }
         };
     }
+<<<<<<< HEAD
+=======
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(12);
+    }
+
+    @Bean
+    public MultipartConfigElement multipartConfigElement(){
+        MultipartConfigFactory configFactory = new MultipartConfigFactory();
+        configFactory.setMaxFileSize(DataSize.parse("10MB"));
+        configFactory.setMaxRequestSize(DataSize.parse("10MB"));
+        return configFactory.createMultipartConfig();
+    }
+
+>>>>>>> origin/main
 }
