@@ -47,7 +47,6 @@ export function useSignPdf() {
       } else {
         setError('Erro ao assinar PDF. Verifique se o backend esta rodando.');
       }
-      console.error(err);
     } finally {
       setLoading(false);
     }

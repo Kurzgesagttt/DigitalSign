@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "cd DigitalSignatureFront && npm ci",
+  "buildCommand": "cd DigitalSignatureFront && npm run build",
+  "outputDirectory": "DigitalSignatureFront/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

@@ -50,9 +50,16 @@ public class RateLimitService {
         return allow("signing", signingLimit, request);
     }
 
+    public boolean allowAccountDeletion(Long userId) {
+        return allowKey("account-deletion:" + userId, loginLimit);
+    }
+
     private boolean allow(String action, int limit, HttpServletRequest request) {
+        return allowKey(action + ':' + requestMetadataService.getClientIp(request), limit);
+    }
+
+    private boolean allowKey(String key, int limit) {
         long now = clock.millis();
-        String key = action + ':' + requestMetadataService.getClientIp(request);
         Counter counter = counters.compute(key, (ignored, current) -> {
             if (current == null || now - current.startedAt >= WINDOW_MILLIS) {
                 return new Counter(now);

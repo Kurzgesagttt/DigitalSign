@@ -207,6 +207,42 @@ class DigitalSignatureApiIntegrationTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void corsAllowsConfiguredOriginWithoutCredentialCookies() throws Exception {
+        mockMvc.perform(options("/v1/auth/login")
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "POST"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+                .andExpect(header().doesNotExist("Access-Control-Allow-Credentials"));
+    }
+
+    @Test
+    void loginRejectsRequestsAfterConfiguredLimit() throws Exception {
+        String body = objectMapper.writeValueAsString(Map.of("email", "missing@example.com", "senha", "synthetic-password"));
+
+        for (int attempt = 0; attempt < 10; attempt++) {
+            mockMvc.perform(post("/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body)
+                            .with(request -> {
+                                request.setRemoteAddr("192.0.2.45");
+                                return request;
+                            }))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body)
+                        .with(request -> {
+                            request.setRemoteAddr("192.0.2.45");
+                            return request;
+                        }))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.erro").exists());
+    }
+
     private Usuario createUser(String email, String cpf, UserRole role) {
         Usuario usuario = new Usuario();
         usuario.setNomeCompleto("Usuario Teste");
