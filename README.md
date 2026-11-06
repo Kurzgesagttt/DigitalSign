@@ -1,4 +1,14 @@
-# DigitalSign - Assinador Digital de PDF
+# Digital Sign - PIC
+
+## Deploy do frontend na Vercel
+
+O frontend React/Vite pode ser publicado na Vercel; o backend Spring Boot e o PostgreSQL precisam de hospedagem separada. Os arquivos `vercel.json` na raiz e em `DigitalSignatureFront/` cobrem as duas configurações possíveis de **Root Directory** do projeto Vercel. Ambos usam `npm ci`, `npm run build`, a pasta `dist` e fallback para rotas do React Router.
+
+No projeto Vercel, configure `VITE_API_BASE_URL` com a URL **HTTPS** pública do backend, sem barra final. Essa variável é incorporada ao bundle no momento do build; depois de alterá-la, faça novo deploy. No backend, configure `CORS_ALLOWED_ORIGINS` com a origem exata da prévia ou do domínio usado, e `APP_BASE_URL` com a URL do frontend para que os QR Codes apontem ao ambiente correto. Sem uma API acessível, o frontend pode ser construído, mas cadastro, login, assinatura e verificação não funcionarão.
+
+Para automação via Git, conecte o repositório ao projeto Vercel e selecione a branch de deploy desejada nas configurações do projeto. Confira a Root Directory antes de promover uma prévia. O projeto atual não inclui backend Java executável como função Vercel.
+
+O workflow `.github/workflows/ci.yml` executa os testes e o build do frontend e os testes do backend em pushes para `main` e em pull requests. O roteiro de demonstração e a lista de evidências do PIC estão em `presentation/GUIA_PIC.md`.
 
 Sistema web para assinatura digital de documentos PDF com verificação por QR Code.
 
@@ -22,10 +32,13 @@ docker compose up --build
 
 Antes de iniciar, preencha `POSTGRES_PASSWORD` e um `JWT_SECRET` aleatorio de pelo menos 32 bytes no arquivo `.env`, que nao deve ser versionado.
 
-Serviços disponíveis:
-Na stack Docker, frontend, backend e banco ficam apenas na rede interna do Compose.
-Em producao, configure o reverse proxy do Coolify para encaminhar para `frontend:8080`.
-Para desenvolvimento local, use a Opcao B abaixo ou um arquivo Compose de override com portas locais.
+Serviços locais após `docker compose up --build`:
+
+- Frontend: `http://localhost:3000`
+- API e Swagger: `http://localhost:8080` e `http://localhost:8080/swagger-ui.html`
+- PostgreSQL para ferramentas locais: `localhost:5432`
+
+As portas estão vinculadas a `127.0.0.1`; não ficam abertas para a rede externa.
 
 Para parar:
 
@@ -33,13 +46,13 @@ Para parar:
 docker compose down
 ```
 
-Para rebuild limpo (quando trocar de máquina ou após mudanças grandes):
+Para reconstruir as imagens sem apagar o banco:
 
 ```bash
-docker compose down -v
-docker compose build --no-cache
-docker compose up
+docker compose up --build
 ```
+
+`docker compose down -v` apaga permanentemente os dados locais do PostgreSQL. Use apenas quando quiser reiniciar os dados de demonstração.
 
 ### Opção B: desenvolvimento local sem containerizar app
 
@@ -53,6 +66,8 @@ Isso inicia um PostgreSQL na porta `5432` com:
 - **Database:** `digitalsign`
 - **Usuário:** `digitalsign`
 - **Senha:** valor de `POSTGRES_PASSWORD` no arquivo `.env`
+
+No IntelliJ, abra `DigitalSignature` como projeto Maven e execute `DigitalSignatureApplication` com as variáveis `SPRING_DATASOURCE_PASSWORD` (o mesmo valor de `POSTGRES_PASSWORD`) e `JWT_SECRET` (ao menos 32 bytes aleatórios). Defina também `APP_BASE_URL=http://localhost:5173` para os QR Codes do frontend em desenvolvimento. O arquivo `.env` do Compose não é carregado automaticamente pela configuração Run do IntelliJ.
 
 ### 2. Iniciar o Backend (porta 8080)
 
@@ -79,10 +94,8 @@ O frontend ficará disponível em `http://localhost:5173`.
 
 - Erro de build dizendo que não encontrou `DigitalSignature/Dockerfile` ou `DigitalSignatureFront/Dockerfile`:
     atualize para a versão mais recente do repositório (esses arquivos devem existir).
-- Falha ao acessar o frontend diretamente no host:
-    a stack principal nao publica portas; acesse pelo dominio configurado no Coolify ou use a Opcao B.
-- Cache quebrado após trocar de PC:
-    use `docker compose down -v` e depois `docker compose build --no-cache`.
+- Falha ao acessar `http://localhost:3000`: confirme que `frontend` e `backend` estão saudáveis com `docker compose ps`.
+- Cache de build quebrado: use `docker compose build --no-cache` e depois `docker compose up`, preservando o volume do banco.
 
 ## Configuração
 

@@ -1,0 +1,351 @@
+{
+    "info":  {
+                 "_postman_id":  "d7a71d52-7cb7-4a65-a9ef-942a71c42b20",
+                 "name":  "DigitalSign PIC - API local",
+                 "description":  "Colecao para demonstracao local da API e coleta de evidencias tecnicas. Use somente contas e PDFs sinteticos. A colecao nao demonstra conformidade juridica nem validade ICP-Brasil. Configure os valores do ambiente antes de enviar requisicoes.",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+             },
+    "auth":  {
+                 "type":  "bearer",
+                 "bearer":  [
+                                {
+                                    "key":  "token",
+                                    "value":  "{{userJwt}}",
+                                    "type":  "string"
+                                }
+                            ]
+             },
+    "variable":  [
+                     {
+                         "key":  "apiBaseUrl",
+                         "value":  "http://localhost:8080"
+                     },
+                     {
+                         "key":  "userJwt",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "adminJwt",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "verificationCode",
+                         "value":  "PREENCHER_CODIGO_DE_RESPOSTA"
+                     },
+                     {
+                         "key":  "userId",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "signatureId",
+                         "value":  "1"
+                     }
+                 ],
+    "item":  [
+                 {
+                     "name":  "Autenticacao",
+                     "item":  [
+                                  {
+                                      "name":  "Cadastrar usuario sintetico",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "auth":  {
+                                                                   "type":  "noauth"
+                                                               },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"nomeCompleto\": \"{{demoName}}\",\n  \"email\": \"{{demoEmail}}\",\n  \"telefone\": \"{{demoPhone}}\",\n  \"cpf\": \"{{demoCpf}}\",\n  \"dataNascimento\": \"{{demoBirthDate}}\",\n  \"senha\": \"{{demoPassword}}\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "url":  "{{apiBaseUrl}}/v1/auth/register",
+                                                      "description":  "Cria uma conta local usando apenas valores sinteticos do ambiente. O CPF placeholder nao representa um documento real."
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "if (pm.response.code === 201 || pm.response.code === 200) {",
+                                                                                    "  const data = pm.response.json();",
+                                                                                    "  if (data.token) pm.environment.set(\u0027userJwt\u0027, data.token);",
+                                                                                    "}"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Login",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "auth":  {
+                                                                   "type":  "noauth"
+                                                               },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"email\": \"{{demoEmail}}\",\n  \"senha\": \"{{demoPassword}}\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "url":  "{{apiBaseUrl}}/v1/auth/login"
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "if (pm.response.code === 200) {",
+                                                                                    "  const data = pm.response.json();",
+                                                                                    "  if (data.token) pm.environment.set(\u0027userJwt\u0027, data.token);",
+                                                                                    "}"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Perfil e exclusao da propria conta",
+                     "item":  [
+                                  {
+                                      "name":  "Consultar meu perfil e finalidades",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{apiBaseUrl}}/v1/users/me",
+                                                      "description":  "Requer userJwt. Retorna dados da propria conta, total de assinaturas, categorias de dados/finalidades e limites informados para exclusao. A resposta nao inclui senha/hash."
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Excluir minha conta sintetica (etapa final)",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"senha\": \"{{demoPassword}}\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "url":  "{{apiBaseUrl}}/v1/users/me",
+                                                      "description":  "Requer userJwt. Exclusao destrutiva: execute por ultimo e somente para conta descartavel sintetica. Sucesso esperado: 204 sem corpo. Apaga conta, assinaturas e auditoria da conta/assinaturas; nao apaga PDFs previamente baixados nem backups externos. Use a senha local de demonstracao."
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Assinatura e verificacao publica",
+                     "item":  [
+                                  {
+                                      "name":  "Assinar PDF sintetico",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "formdata",
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "file",
+                                                                                        "type":  "file",
+                                                                                        "src":  "",
+                                                                                        "description":  "Selecione um PDF sintÃ©tico local; nÃ£o use documentos reais."
+                                                                                    }
+                                                                                ]
+                                                               },
+                                                      "url":  "{{apiBaseUrl}}/v1/sign",
+                                                      "description":  "Requer userJwt. Selecione manualmente um PDF sintÃ©tico na aba Body. A API devolve o PDF assinado e X-Verification-Code."
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "const code = pm.response.headers.get(\u0027X-Verification-Code\u0027);",
+                                                                                    "if (code) pm.environment.set(\u0027verificationCode\u0027, code);"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Verificar codigo",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "auth":  {
+                                                                   "type":  "noauth"
+                                                               },
+                                                      "url":  "{{apiBaseUrl}}/v1/verify/{{verificationCode}}",
+                                                      "description":  "Endpoint publico. A resposta atual informa validade/status e data de assinatura; nao inclui dados do assinante. Use o codigo devolvido ao assinar."
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Administracao (requer role ADMIN)",
+                     "auth":  {
+                                  "type":  "bearer",
+                                  "bearer":  [
+                                                 {
+                                                     "key":  "token",
+                                                     "value":  "{{adminJwt}}",
+                                                     "type":  "string"
+                                                 }
+                                             ]
+                              },
+                     "item":  [
+                                  {
+                                      "name":  "Listar usuarios",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{apiBaseUrl}}/v1/admin/users?page=0\u0026size=20"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Bloquear usuario sintetico",
+                                      "request":  {
+                                                      "method":  "PATCH",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"motivo\": \"Bloqueio demonstrativo PIC\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "url":  "{{apiBaseUrl}}/v1/admin/users/{{userId}}/block"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Desbloquear usuario sintetico",
+                                      "request":  {
+                                                      "method":  "PATCH",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{apiBaseUrl}}/v1/admin/users/{{userId}}/unblock"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Listar assinaturas",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{apiBaseUrl}}/v1/admin/signatures?page=0\u0026size=20"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Revogar assinatura sintetica",
+                                      "request":  {
+                                                      "method":  "PATCH",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"motivo\": \"Revogacao demonstrativa PIC\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "url":  "{{apiBaseUrl}}/v1/admin/signatures/{{signatureId}}/revoke"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Metricas",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{apiBaseUrl}}/v1/admin/metrics"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Auditoria paginada",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{apiBaseUrl}}/v1/admin/audit-logs?page=0\u0026size=20"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Exportar assinaturas CSV",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{apiBaseUrl}}/v1/admin/reports/signatures.csv"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Exportar auditoria CSV",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{apiBaseUrl}}/v1/admin/reports/audit-logs.csv"
+                                                  }
+                                  }
+                              ]
+                 }
+             ]
+}

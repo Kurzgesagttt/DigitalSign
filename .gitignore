@@ -16,6 +16,9 @@
 .env.production
 .env.development
 .env.examples
+/DigitalSignatureFront/.env
+**/.env.local
+**/.env.*.local
 application-prod.yml
 application-local.yml
 secrets.yml
@@ -38,6 +41,7 @@ secrets.yml
 .project
 .classpath
 .settings/
+/docs
 
 # ===== SISTEMA OPERACIONAL =====
 .DS_Store
@@ -60,13 +64,9 @@ yarn-error.log*
 pnpm-debug.log*
 .pnp.*
 .yarn/
-.vite/
-coverage/
-*.tsbuildinfo
 
 # ===== JAVA/MAVEN =====
 target/
-${project.build.directory}/
 *.class
 *.jar
 *.war
@@ -107,6 +107,11 @@ ENV/
 # ===== RAILWAY/DEPLOY =====
 .railway/
 
-# ===== DOCUMENTAÇÃO PRIVADA (Operacional) =====
-docs/
+# Documentação local do PIC e backlog
+/docs/
+/BACKLOG.md
+/ROTEIRO_PIC.md
 
+# Vinculo local da Vercel
+.vercel/
+.vercel
