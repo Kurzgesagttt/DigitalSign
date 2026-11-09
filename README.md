@@ -1,0 +1,217 @@
+# Digital Sign - PIC
+
+## Deploy no Netlify + API externa + Supabase
+
+O Netlify publica o frontend React/Vite como site estatico. A configuracao em `netlify.toml` usa `DigitalSignatureFront` como base, executa `npm run build`, publica `dist` e redireciona rotas do React para `index.html`.
+
+O backend Spring Boot e Java e nao e publicado por essa configuracao do Netlify. Hospede a API em um servico que execute Java 17 ou o Dockerfile de `DigitalSignature/`, e mantenha o PostgreSQL no Supabase. O frontend chama a API por HTTPS; o Netlify nao deve receber credenciais do banco.
+
+### Variaveis do Netlify
+
+Em **Project configuration > Environment variables**, configure `VITE_API_BASE_URL` com a URL HTTPS publica da API, sem segredo. Ela e incorporada ao frontend durante o build; depois de altera-la, faca um novo deploy. O arquivo `DigitalSignatureFront/.env.example` mostra o valor para desenvolvimento local.
+
+### Variaveis do servico da API
+
+Configure estas variaveis no provedor que hospeda o backend:
+
+- `DATABASE_URL`: URI PostgreSQL copiada do painel Supabase em **Connect > Session pooler** (por exemplo, `postgresql://postgres.<project-ref>:<senha>@<host-do-pooler>:5432/postgres`). Para um backend persistente com conectividade IPv6, a conexao direta tambem serve. Use a URI de session pooler se o host da API so tiver IPv4. Codifique caracteres reservados da senha com URL-encoding.
+- `JWT_SECRET`: segredo aleatorio exclusivo do ambiente, com pelo menos 32 bytes.
+- `APP_BASE_URL`: origem HTTPS do frontend Netlify, usada nos QR Codes.
+- `CORS_ALLOWED_ORIGINS`: origem exata do frontend, por exemplo `https://seu-site.netlify.app` (sem barra final).
+- `PORT`: porta fornecida pelo provedor de API, quando aplicavel.
+- `ADMIN_BOOTSTRAP_EMAIL`: opcional; promove um usuario existente a admin.
+
+O backend ja converte `DATABASE_URL` para JDBC e exige SSL. Nunca coloque essa URI em `VITE_*`, no Netlify ou no codigo do navegador. O exemplo raiz `.env.example` documenta as variaveis; o Netlify e o provedor da API recebem suas variaveis nas respectivas configuracoes.
+
+A API continua aplicando o limite atual de upload de PDF de 3 MB e requisicao de 4 MB. A URI do Supabase deve ser adicionada quando o projeto Supabase e sua senha estiverem disponiveis; nao e possivel testar a conexao sem essa credencial.
+
+Para desenvolvimento local, siga usando `docker compose up --build`. Esse fluxo mantem o Postgres local e nao usa `DATABASE_URL` do Supabase.
+
+Sistema web para assinatura digital de documentos PDF com verificação por QR Code.
+
+## Pré-requisitos
+
+- **Java 17** (JDK)
+- **Maven** (ou usar o wrapper do IDE)
+- **Node.js 20+** e **npm**
+- **Docker** e **Docker Compose v2** (para rodar stack completa em containers)
+
+## Como rodar localmente
+
+### Opção A: stack completa com Docker (recomendado para outro PC)
+
+Na raiz do projeto:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Antes de iniciar, preencha `POSTGRES_PASSWORD` e um `JWT_SECRET` aleatorio de pelo menos 32 bytes no arquivo `.env`, que nao deve ser versionado.
+
+Serviços locais após `docker compose up --build`:
+
+- Frontend: `http://localhost:3000`
+- API e Swagger: `http://localhost:8080` e `http://localhost:8080/swagger-ui.html`
+- PostgreSQL para ferramentas locais: `localhost:5432`
+
+As portas estão vinculadas a `127.0.0.1`; não ficam abertas para a rede externa.
+
+Para parar:
+
+```bash
+docker compose down
+```
+
+Para reconstruir as imagens sem apagar o banco:
+
+```bash
+docker compose up --build
+```
+
+`docker compose down -v` apaga permanentemente os dados locais do PostgreSQL. Use apenas quando quiser reiniciar os dados de demonstração.
+
+### Opção B: desenvolvimento local sem containerizar app
+
+### 1. Subir o banco de dados (PostgreSQL)
+
+```bash
+docker compose up -d db
+```
+
+Isso inicia um PostgreSQL na porta `5432` com:
+- **Database:** `digitalsign`
+- **Usuário:** `digitalsign`
+- **Senha:** valor de `POSTGRES_PASSWORD` no arquivo `.env`
+
+No IntelliJ, abra `DigitalSignature` como projeto Maven e execute `DigitalSignatureApplication` com as variáveis `SPRING_DATASOURCE_PASSWORD` (o mesmo valor de `POSTGRES_PASSWORD`) e `JWT_SECRET` (ao menos 32 bytes aleatórios). Defina também `APP_BASE_URL=http://localhost:5173` para os QR Codes do frontend em desenvolvimento. O arquivo `.env` do Compose não é carregado automaticamente pela configuração Run do IntelliJ.
+
+### 2. Iniciar o Backend (porta 8080)
+
+```bash
+cd DigitalSignature
+mvn spring-boot:run -DskipTests
+```
+
+O backend ficará disponível em `http://localhost:8080`.
+
+API docs (Swagger): `http://localhost:8080/swagger-ui.html`
+
+### 3. Iniciar o Frontend (porta 5173)
+
+```bash
+cd DigitalSignatureFront
+npm install
+npm run dev
+```
+
+O frontend ficará disponível em `http://localhost:5173`.
+
+## Troubleshooting de Docker
+
+- Erro de build dizendo que não encontrou `DigitalSignature/Dockerfile` ou `DigitalSignatureFront/Dockerfile`:
+    atualize para a versão mais recente do repositório (esses arquivos devem existir).
+- Falha ao acessar `http://localhost:3000`: confirme que `frontend` e `backend` estão saudáveis com `docker compose ps`.
+- Cache de build quebrado: use `docker compose build --no-cache` e depois `docker compose up`, preservando o volume do banco.
+
+## Configuração
+
+### Backend (`DigitalSignature/src/main/resources/application.yml`)
+
+Todas as configurações podem ser sobrescritas via variáveis de ambiente:
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `DATABASE_URL` | sem fallback | URI PostgreSQL `postgresql://...` do Supabase; somente no servico da API |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/digitalsign` | URL JDBC local/alternativa quando `DATABASE_URL` nao estiver definida |
+| `SPRING_DATASOURCE_USERNAME` | `digitalsign` | Usuário do banco |
+| `SPRING_DATASOURCE_PASSWORD` | sem fallback | Senha do banco; obrigatoria |
+| `PORT` / `SERVER_PORT` | `8080` | Porta do backend |
+| `APP_BASE_URL` | sem fallback | URL base do frontend (usada nos QR Codes) |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:5174` | Origens CORS permitidas |
+| `JWT_SECRET` | sem fallback | Segredo de assinatura JWT; obrigatorio e exclusivo por ambiente |
+| `JWT_EXPIRATION_SECONDS` | `86400` | Tempo de validade do token |
+| `ADMIN_BOOTSTRAP_EMAIL` | vazio | Promove para `ADMIN` um usuário já cadastrado com este email ao iniciar o backend |
+
+### Frontend (`DigitalSignatureFront/.env`; variaveis de ambiente do Netlify em producao)
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `VITE_API_BASE_URL` | `http://localhost:8080` | URL da API backend |
+
+## Fluxo de uso
+
+1. Acesse `http://localhost:5173`
+2. Crie uma conta (nome, email, telefone, CPF, data de nascimento, senha)
+3. Faça login
+4. Faça upload de um PDF e clique em "Assinar PDF"
+5. O backend usa os dados do usuário autenticado para assinar o PDF
+6. O PDF assinado terá uma página de certificado com um **QR Code de verificação**
+7. Qualquer pessoa que escanear o QR Code pode confirmar a identidade do assinante informando CPF e email
+
+## Admin
+
+Para criar o primeiro admin em ambiente local:
+
+1. Cadastre o usuário normalmente pelo frontend.
+2. Reinicie o backend com `ADMIN_BOOTSTRAP_EMAIL=email-do-usuario`.
+3. Faça login novamente; o link `Admin` aparecerá na navegação.
+
+O painel admin permite listar usuários, bloquear/desbloquear contas, consultar assinaturas, revogar assinaturas, ver métricas, consultar auditoria e exportar CSV de assinaturas/auditoria.
+
+## Endpoints principais
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `POST` | `/v1/auth/register` | Cadastro de usuário, retorna JWT e role |
+| `POST` | `/v1/auth/login` | Login, retorna JWT e role |
+| `POST` | `/v1/sign` | Assinar PDF autenticado (multipart: file) |
+| `GET` | `/v1/verify/{code}` | Dados do assinante (mascarados) |
+| `GET` | `/v1/admin/users` | Admin: listar usuários |
+| `PATCH` | `/v1/admin/users/{id}/block` | Admin: bloquear usuário |
+| `PATCH` | `/v1/admin/users/{id}/unblock` | Admin: desbloquear usuário |
+| `GET` | `/v1/admin/signatures` | Admin: consultar assinaturas |
+| `PATCH` | `/v1/admin/signatures/{id}/revoke` | Admin: revogar assinatura |
+| `GET` | `/v1/admin/metrics` | Admin: métricas básicas |
+| `GET` | `/v1/admin/audit-logs` | Admin: trilha de auditoria |
+| `GET` | `/v1/admin/reports/signatures.csv` | Admin: exportar assinaturas em CSV |
+| `GET` | `/v1/admin/reports/audit-logs.csv` | Admin: exportar auditoria em CSV |
+
+Rotas admin exigem JWT de usuário com role `ADMIN`.
+
+## Testes automatizados
+
+Backend:
+
+```bash
+cd DigitalSignature
+mvn test
+```
+
+Frontend:
+
+```bash
+cd DigitalSignatureFront
+npm test
+npm run lint
+npm run build
+```
+
+Os testes de backend usam Spring Boot, MockMvc, Spring Security Test e H2 em memória. Os testes de frontend usam Vitest, jsdom e Testing Library.
+
+## Estrutura
+
+```
+DigitalSign/
+├── docker-compose.yml          # PostgreSQL local
+├── DigitalSignature/            # Backend (Spring Boot + Java 17)
+│   └── src/main/java/com/Kurzgesagtt/DigitalSignature/
+│       ├── controller/          # AuthController, PdfSignController, VerificationController
+│       ├── model/               # Usuario, SignatureRecord
+│       ├── repository/          # JPA repositories
+│       └── services/            # PdfMemorySignService, QrCodeService, KeyGenerator
+└── DigitalSignatureFront/       # Frontend (React + TypeScript + Vite)
+    └── src/
+        ├── components/          # LoginPage, RegisterPage, SignPdfForm, VerifyPage
+        └── hooks/               # useSignPdf
+```

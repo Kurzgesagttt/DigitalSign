@@ -1,0 +1,118 @@
+# ===== SEGURANÇA CRÍTICA =====
+# Certificados e chaves privadas
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+*.keystore
+
+# Variáveis de ambiente e configurações sensíveis
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+.env.examples
+/DigitalSignatureFront/.env
+**/.env.local
+**/.env.*.local
+application-prod.yml
+application-local.yml
+secrets.yml
+
+# Credenciais e tokens
+*credentials*
+*token*
+*secret*
+.aws/
+.gcp/
+.azure/
+
+# ===== IDEs E EDITORES =====
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+/docs
+
+# ===== SISTEMA OPERACIONAL =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== LOGS E TEMPORÁRIOS =====
+*.log
+logs/
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# ===== NODE/FRONTEND =====
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnp.*
+.yarn/
+
+# ===== JAVA/MAVEN =====
+target/
+.m2-cache/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/wrapper/maven-wrapper.jar
+mvnw
+mvnw.cmd
+
+# ===== BUILD OUTPUTS =====
+dist/
+build/
+out/
+*.min.js
+*.min.css
+
+# ===== DOCKER =====
+volumes/
+.docker/
+docker-compose.override.yml
+
+# ===== PYTHON =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+
+# ===== BANCO DE DADOS =====
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+
+# ===== RAILWAY/DEPLOY =====
+.railway/
+
+# Documentação local do PIC e backlog
+/docs/
+/BACKLOG.md
+/ROTEIRO_PIC.md
+
+# Arquivos locais de vinculo antigo da Vercel
+.vercel/
+.vercel

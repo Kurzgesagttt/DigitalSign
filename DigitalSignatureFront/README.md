@@ -1,0 +1,1 @@
+Não sei muito sobre front-end, apenas quero que fique um projeto completo e funcional.
