@@ -114,16 +114,11 @@ public class PdfSignController {
 
             return new ResponseEntity<>(signedPdf, headers, HttpStatus.OK);
         } catch (Exception e) {
-<<<<<<< HEAD
             auditService.record(usuario, "SIGNATURE_CREATED", "FAILURE", "SIGNATURE", null, "PROCESSING_ERROR", request);
             if (e instanceof IllegalArgumentException) {
                 return ResponseEntity.badRequest().body(Map.of("erro", "Envie um PDF valido e nao protegido por senha."));
             }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("erro", "Erro ao assinar PDF."));
-=======
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("erro", "Erro interno ao assinar o PDF. Tente novamente."));
->>>>>>> origin/main
         }
     }
 

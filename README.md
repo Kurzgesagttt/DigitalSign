@@ -1,5 +1,13 @@
 # Digital Sign - PIC
 
+## Deploy na VPS do blog com Coolify
+
+Use o recurso Docker Compose apontando para esta branch e para `docker-compose.yml`. A stack tem rede e volume PostgreSQL próprios. Somente o frontend publica `127.0.0.1:8090:8080`; API e banco ficam privados. O Caddy existente pode encaminhar `digitalsign.lucasmoreno.com.br` para `127.0.0.1:8090`, sem iniciar o proxy Coolify nas portas 80/443.
+
+No Coolify, cadastre `POSTGRES_PASSWORD` e `JWT_SECRET` como variáveis secretas. Configure `APP_BASE_URL` e `CORS_ALLOWED_ORIGINS` como `https://digitalsign.lucasmoreno.com.br`. Não configure domínio público para API ou banco.
+
+Antes de publicar, confirme que a porta 8090 está livre, confira o DNS do subdomínio e faça backup do Caddyfile efetivo. Adicione apenas o bloco do subdomínio ao Caddyfile existente, valide com `caddy validate` e recarregue Caddy. Para rollback, remova esse bloco e recarregue Caddy; pare somente o recurso DigitalSign e preserve o volume PostgreSQL.
+
 ## Deploy do frontend na Vercel
 
 O frontend React/Vite pode ser publicado na Vercel; o backend Spring Boot e o PostgreSQL precisam de hospedagem separada. Os arquivos `vercel.json` na raiz e em `DigitalSignatureFront/` cobrem as duas configurações possíveis de **Root Directory** do projeto Vercel. Ambos usam `npm ci`, `npm run build`, a pasta `dist` e fallback para rotas do React Router.
@@ -34,9 +42,9 @@ Antes de iniciar, preencha `POSTGRES_PASSWORD` e um `JWT_SECRET` aleatorio de pe
 
 Serviços locais após `docker compose up --build`:
 
-- Frontend: `http://localhost:3000`
-- API e Swagger: `http://localhost:8080` e `http://localhost:8080/swagger-ui.html`
-- PostgreSQL para ferramentas locais: `localhost:5432`
+- Frontend: `http://localhost:8090`
+- API via Nginx: `http://localhost:8090/api/`
+- API e PostgreSQL não publicam portas no host.
 
 As portas estão vinculadas a `127.0.0.1`; não ficam abertas para a rede externa.
 
@@ -62,7 +70,7 @@ docker compose up --build
 docker compose up -d db
 ```
 
-Isso inicia um PostgreSQL na porta `5432` com:
+Para executar a API e o frontend fora dos containers, use um PostgreSQL local separado; o serviço `db` do Compose não publica a porta `5432`. A configuração do banco usa:
 - **Database:** `digitalsign`
 - **Usuário:** `digitalsign`
 - **Senha:** valor de `POSTGRES_PASSWORD` no arquivo `.env`
@@ -94,7 +102,7 @@ O frontend ficará disponível em `http://localhost:5173`.
 
 - Erro de build dizendo que não encontrou `DigitalSignature/Dockerfile` ou `DigitalSignatureFront/Dockerfile`:
     atualize para a versão mais recente do repositório (esses arquivos devem existir).
-- Falha ao acessar `http://localhost:3000`: confirme que `frontend` e `backend` estão saudáveis com `docker compose ps`.
+- Falha ao acessar `http://localhost:8090`: confirme que `frontend` e `backend` estão saudáveis com `docker compose ps`.
 - Cache de build quebrado: use `docker compose build --no-cache` e depois `docker compose up`, preservando o volume do banco.
 
 ## Configuração
