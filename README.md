@@ -1,208 +1,154 @@
-# Digital Sign - PIC
+# DigitalSign
 
-## Deploy na VPS do blog com Coolify
+Aplicação web para autenticar usuários, assinar arquivos PDF e verificar assinaturas pelo código/QR Code gerado pelo próprio sistema.
 
-Use o recurso Docker Compose apontando para esta branch e para `docker-compose.yml`. A stack tem rede e volume PostgreSQL próprios. Somente o frontend publica `127.0.0.1:8090:8080`; API e banco ficam privados. O Caddy existente pode encaminhar `digitalsign.lucasmoreno.com.br` para `127.0.0.1:8090`, sem iniciar o proxy Coolify nas portas 80/443.
+> A validação do DigitalSign é específica da aplicação. Não anuncie os resultados como assinatura qualificada ICP-Brasil nem como substituto de certificado ou orientação jurídica.
 
-No Coolify, cadastre `POSTGRES_PASSWORD` e `JWT_SECRET` como variáveis secretas. Configure `APP_BASE_URL` e `CORS_ALLOWED_ORIGINS` como `https://digitalsign.lucasmoreno.com.br`. Não configure domínio público para API ou banco.
+## Funcionalidades
 
-Antes de publicar, confirme que a porta 8090 está livre, confira o DNS do subdomínio e faça backup do Caddyfile efetivo. Adicione apenas o bloco do subdomínio ao Caddyfile existente, valide com `caddy validate` e recarregue Caddy. Para rollback, remova esse bloco e recarregue Caddy; pare somente o recurso DigitalSign e preserve o volume PostgreSQL.
+- Cadastro, login e perfil de usuário.
+- Envio e assinatura de PDF pelo backend; o documento inclui dados de verificação por QR Code.
+- Verificação pública de uma assinatura por código, com dados pessoais limitados/mascarados.
+- Painel administrativo para usuários, assinaturas, métricas, auditoria e relatórios CSV.
+- API REST Spring Boot e interface React/TypeScript.
 
-## Deploy do frontend na Vercel
+O sistema processa dados pessoais (incluindo CPF e dados de contato) e documentos enviados por usuários. Use apenas dados sintéticos em desenvolvimento e testes. Antes de uso público, defina e documente finalidade, base legal, retenção, resposta a incidentes e controles de acesso; o código não constitui garantia de conformidade legal.
 
-O frontend React/Vite pode ser publicado na Vercel; o backend Spring Boot e o PostgreSQL precisam de hospedagem separada. Os arquivos `vercel.json` na raiz e em `DigitalSignatureFront/` cobrem as duas configurações possíveis de **Root Directory** do projeto Vercel. Ambos usam `npm ci`, `npm run build`, a pasta `dist` e fallback para rotas do React Router.
+## Arquitetura
 
-No projeto Vercel, configure `VITE_API_BASE_URL` com a URL **HTTPS** pública do backend, sem barra final. Essa variável é incorporada ao bundle no momento do build; depois de alterá-la, faça novo deploy. No backend, configure `CORS_ALLOWED_ORIGINS` com a origem exata da prévia ou do domínio usado, e `APP_BASE_URL` com a URL do frontend para que os QR Codes apontem ao ambiente correto. Sem uma API acessível, o frontend pode ser construído, mas cadastro, login, assinatura e verificação não funcionarão.
+- **Frontend:** React, TypeScript e Vite, servido pelo Nginx.
+- **Backend:** Java 17 e Spring Boot; API sob `/v1`.
+- **Banco:** PostgreSQL 16.
+- **Containers:** Docker Compose. O Nginx encaminha `/api/` ao backend privado.
 
-Para automação via Git, conecte o repositório ao projeto Vercel e selecione a branch de deploy desejada nas configurações do projeto. Confira a Root Directory antes de promover uma prévia. O projeto atual não inclui backend Java executável como função Vercel.
+```text
+Navegador --HTTPS--> Caddy/proxy --> frontend Nginx :8080
+                                      | /api/*
+                                      v
+                                 backend :8080 --> PostgreSQL :5432
+```
 
-O workflow `.github/workflows/ci.yml` executa os testes e o build do frontend e os testes do backend em pushes para `main` e em pull requests. O roteiro de demonstração e a lista de evidências do PIC estão em `presentation/GUIA_PIC.md`.
+No Compose, somente o frontend publica porta no host (`127.0.0.1:8090`). API e banco não têm portas públicas; a rede e o volume `pgdata` são exclusivos da stack.
 
-Sistema web para assinatura digital de documentos PDF com verificação por QR Code.
+## Executar localmente com Docker
 
-## Pré-requisitos
+Requisitos: Docker com Compose v2 e Node.js 20+ (para gerar segredos ou rodar ferramentas do frontend).
 
-- **Java 17** (JDK)
-- **Maven** (ou usar o wrapper do IDE)
-- **Node.js 20+** e **npm**
-- **Docker** e **Docker Compose v2** (para rodar stack completa em containers)
+PowerShell:
 
-## Como rodar localmente
+```powershell
+Copy-Item .env.example .env
+```
 
-### Opção A: stack completa com Docker (recomendado para outro PC)
+Linux/macOS:
 
-Na raiz do projeto:
-
-```bash
+```sh
 cp .env.example .env
-docker compose up --build
 ```
 
-Antes de iniciar, preencha `POSTGRES_PASSWORD` e um `JWT_SECRET` aleatorio de pelo menos 32 bytes no arquivo `.env`, que nao deve ser versionado.
+Edite `.env`: gere valores aleatórios diferentes para `POSTGRES_PASSWORD` e `JWT_SECRET`. Um exemplo de comando com Node.js para cada valor:
 
-Serviços locais após `docker compose up --build`:
-
-- Frontend: `http://localhost:8090`
-- API via Nginx: `http://localhost:8090/api/`
-- API e PostgreSQL não publicam portas no host.
-
-As portas estão vinculadas a `127.0.0.1`; não ficam abertas para a rede externa.
-
-Para parar:
-
-```bash
-docker compose down
+```sh
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 ```
 
-Para reconstruir as imagens sem apagar o banco:
+`JWT_SECRET` precisa ter pelo menos 32 bytes aleatórios. Nunca versione `.env`, nem reutilize os valores de exemplo ou credenciais de outros sistemas.
 
-```bash
-docker compose up --build
+```sh
+docker compose config --quiet
+docker compose up -d --build
+docker compose ps
 ```
 
-`docker compose down -v` apaga permanentemente os dados locais do PostgreSQL. Use apenas quando quiser reiniciar os dados de demonstração.
+Abra `http://localhost:8090`. O frontend chama a API pela rota `/api/`. Para ver logs, use `docker compose logs --tail=100 backend frontend db`. `docker compose down` preserva o banco; `docker compose down -v` apaga permanentemente `pgdata`.
 
-### Opção B: desenvolvimento local sem containerizar app
+### Variáveis de ambiente
 
-### 1. Subir o banco de dados (PostgreSQL)
+| Variável | Obrigatória | Uso |
+|---|---:|---|
+| `POSTGRES_PASSWORD` | Sim | Senha exclusiva do banco local/da stack. O Compose também a usa na conexão do backend. |
+| `JWT_SECRET` | Sim | Segredo HMAC aleatório, exclusivo por ambiente, com pelo menos 32 bytes. |
+| `APP_BASE_URL` | Não | Origem usada nos QR Codes; no local, `http://localhost:8090`; em produção, a URL HTTPS pública. |
+| `CORS_ALLOWED_ORIGINS` | Não | Origens frontend permitidas, sem caminho; no local, `http://localhost:8090`; em produção, a origem HTTPS exata. |
+| `ADMIN_BOOTSTRAP_EMAIL` | Não | Promove a administrador uma conta já cadastrada com esse e-mail quando o backend inicia. Deixe vazio até escolher a conta. |
 
-```bash
-docker compose up -d db
-```
+O Compose usa `digitalsign` como nome fixo do banco e do usuário PostgreSQL. Não há variáveis públicas separadas para a API ou para o banco. Para desenvolvimento do frontend fora do Compose, `DigitalSignatureFront/.env.example` configura `VITE_API_BASE_URL` para a API local. O build Docker de produção já usa `/api` no mesmo domínio.
 
-Para executar a API e o frontend fora dos containers, use um PostgreSQL local separado; o serviço `db` do Compose não publica a porta `5432`. A configuração do banco usa:
-- **Database:** `digitalsign`
-- **Usuário:** `digitalsign`
-- **Senha:** valor de `POSTGRES_PASSWORD` no arquivo `.env`
+## Deploy na VPS pelo Coolify
 
-No IntelliJ, abra `DigitalSignature` como projeto Maven e execute `DigitalSignatureApplication` com as variáveis `SPRING_DATASOURCE_PASSWORD` (o mesmo valor de `POSTGRES_PASSWORD`) e `JWT_SECRET` (ao menos 32 bytes aleatórios). Defina também `APP_BASE_URL=http://localhost:5173` para os QR Codes do frontend em desenvolvimento. O arquivo `.env` do Compose não é carregado automaticamente pela configuração Run do IntelliJ.
+O repositório está preparado para um recurso **Docker Compose** apontando para a branch `main` e para `docker-compose.yml` na raiz.
 
-### 2. Iniciar o Backend (porta 8080)
+1. No Coolify, conecte `https://github.com/Kurzgesagttt/DigitalSign`, branch `main`, Compose file `docker-compose.yml`.
+2. Cadastre `POSTGRES_PASSWORD` e `JWT_SECRET` como variáveis secretas do recurso. Gere valores distintos, aleatórios e novos para produção; não use `.env.example` como fonte de segredo.
+3. Defina `APP_BASE_URL=https://digitalsign.lucasmoreno.com.br` e `CORS_ALLOWED_ORIGINS=https://digitalsign.lucasmoreno.com.br`. Para habilitar o painel, defina `ADMIN_BOOTSTRAP_EMAIL` com o e-mail de uma conta já cadastrada; o backend precisa reiniciar para promover a conta.
+4. Mantenha o Caddy existente do blog nas portas 80/443 e deixe o proxy Traefik do Coolify desligado. O recurso não precisa de domínio no proxy Coolify: o frontend já publica `127.0.0.1:8090` para o Caddy local.
+5. Depois de conferir DNS, aponte apenas o subdomínio `digitalsign.lucasmoreno.com.br` para a VPS, preservando os outros registros. Acrescente ao Caddyfile existente:
 
-```bash
-cd DigitalSignature
-mvn spring-boot:run -DskipTests
-```
+   ```caddyfile
+   digitalsign.lucasmoreno.com.br {
+       reverse_proxy 127.0.0.1:8090
+   }
+   ```
 
-O backend ficará disponível em `http://localhost:8080`.
+6. Antes de recarregar Caddy, valide a configuração efetiva. Verifique o site e o blog por HTTPS após o deploy. Faça backup do banco antes de mudanças de schema e nunca use `docker compose down -v` para atualizar.
 
-API docs (Swagger): `http://localhost:8080/swagger-ui.html`
+Não publique `8080` do backend nem `5432` do PostgreSQL. A porta 8090 deve estar livre e permanecer vinculada somente ao loopback da VPS.
 
-### 3. Iniciar o Frontend (porta 5173)
-
-```bash
-cd DigitalSignatureFront
-npm install
-npm run dev
-```
-
-O frontend ficará disponível em `http://localhost:5173`.
-
-## Troubleshooting de Docker
-
-- Erro de build dizendo que não encontrou `DigitalSignature/Dockerfile` ou `DigitalSignatureFront/Dockerfile`:
-    atualize para a versão mais recente do repositório (esses arquivos devem existir).
-- Falha ao acessar `http://localhost:8090`: confirme que `frontend` e `backend` estão saudáveis com `docker compose ps`.
-- Cache de build quebrado: use `docker compose build --no-cache` e depois `docker compose up`, preservando o volume do banco.
-
-## Configuração
-
-### Backend (`DigitalSignature/src/main/resources/application.yml`)
-
-Todas as configurações podem ser sobrescritas via variáveis de ambiente:
-
-| Variável | Padrão | Descrição |
-|---|---|---|
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/digitalsign` | URL do banco |
-| `SPRING_DATASOURCE_USERNAME` | `digitalsign` | Usuário do banco |
-| `SPRING_DATASOURCE_PASSWORD` | sem fallback | Senha do banco; obrigatoria |
-| `SERVER_PORT` | `8080` | Porta do backend |
-| `APP_BASE_URL` | `http://localhost:5173` | URL base do frontend (usada nos QR Codes) |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:5174` | Origens CORS permitidas |
-| `JWT_SECRET` | sem fallback | Segredo de assinatura JWT; obrigatorio e exclusivo por ambiente |
-| `JWT_EXPIRATION_SECONDS` | `86400` | Tempo de validade do token |
-| `ADMIN_BOOTSTRAP_EMAIL` | vazio | Promove para `ADMIN` um usuário já cadastrado com este email ao iniciar o backend |
-
-### Frontend (`DigitalSignatureFront/.env`)
-
-| Variável | Padrão | Descrição |
-|---|---|---|
-| `VITE_API_BASE_URL` | `http://localhost:8080` | URL da API backend |
-
-## Fluxo de uso
-
-1. Acesse `http://localhost:5173`
-2. Crie uma conta (nome, email, telefone, CPF, data de nascimento, senha)
-3. Faça login
-4. Faça upload de um PDF e clique em "Assinar PDF"
-5. O backend usa os dados do usuário autenticado para assinar o PDF
-6. O PDF assinado terá uma página de certificado com um **QR Code de verificação**
-7. Qualquer pessoa que escanear o QR Code pode confirmar a identidade do assinante informando CPF e email
-
-## Admin
-
-Para criar o primeiro admin em ambiente local:
-
-1. Cadastre o usuário normalmente pelo frontend.
-2. Reinicie o backend com `ADMIN_BOOTSTRAP_EMAIL=email-do-usuario`.
-3. Faça login novamente; o link `Admin` aparecerá na navegação.
-
-O painel admin permite listar usuários, bloquear/desbloquear contas, consultar assinaturas, revogar assinaturas, ver métricas, consultar auditoria e exportar CSV de assinaturas/auditoria.
-
-## Endpoints principais
-
-| Método | Rota | Descrição |
-|---|---|---|
-| `POST` | `/v1/auth/register` | Cadastro de usuário, retorna JWT e role |
-| `POST` | `/v1/auth/login` | Login, retorna JWT e role |
-| `POST` | `/v1/sign` | Assinar PDF autenticado (multipart: file) |
-| `GET` | `/v1/verify/{code}` | Dados do assinante (mascarados) |
-| `GET` | `/v1/admin/users` | Admin: listar usuários |
-| `PATCH` | `/v1/admin/users/{id}/block` | Admin: bloquear usuário |
-| `PATCH` | `/v1/admin/users/{id}/unblock` | Admin: desbloquear usuário |
-| `GET` | `/v1/admin/signatures` | Admin: consultar assinaturas |
-| `PATCH` | `/v1/admin/signatures/{id}/revoke` | Admin: revogar assinatura |
-| `GET` | `/v1/admin/metrics` | Admin: métricas básicas |
-| `GET` | `/v1/admin/audit-logs` | Admin: trilha de auditoria |
-| `GET` | `/v1/admin/reports/signatures.csv` | Admin: exportar assinaturas em CSV |
-| `GET` | `/v1/admin/reports/audit-logs.csv` | Admin: exportar auditoria em CSV |
-
-Rotas admin exigem JWT de usuário com role `ADMIN`.
-
-## Testes automatizados
-
-Backend:
-
-```bash
-cd DigitalSignature
-mvn test
-```
+## Desenvolvimento e verificações
 
 Frontend:
 
-```bash
+```sh
 cd DigitalSignatureFront
+npm ci
 npm test
 npm run lint
 npm run build
 ```
 
-Os testes de backend usam Spring Boot, MockMvc, Spring Security Test e H2 em memória. Os testes de frontend usam Vitest, jsdom e Testing Library.
+Backend:
+
+```sh
+cd DigitalSignature
+mvn test
+```
+
+Compose e imagens:
+
+```sh
+docker compose config --quiet
+docker compose build
+```
+
+O workflow `.github/workflows/ci.yml` executa testes, lint e build do frontend e testes do backend em pushes para `main` e pull requests.
+
+## Endpoints principais
+
+O Nginx recebe chamadas em `/api/v1/...` e encaminha para a API privada `/v1/...`.
+
+| Método | Rota pública | Descrição |
+|---|---|---|
+| `POST` | `/api/v1/auth/register` | Cadastro |
+| `POST` | `/api/v1/auth/login` | Login |
+| `GET` | `/api/v1/sign` | Instruções de uso do endpoint de assinatura |
+| `POST` | `/api/v1/sign` | Assinar PDF autenticado |
+| `GET` | `/api/v1/verify/{code}` | Verificar assinatura |
+| `GET` | `/api/v1/users/me` | Consultar perfil autenticado |
+| `DELETE` | `/api/v1/users/me` | Excluir a própria conta |
+| `GET` | `/api/v1/admin/users` | Listar usuários (admin) |
+| `GET` | `/api/v1/admin/signatures` | Consultar assinaturas (admin) |
+| `GET` | `/api/v1/admin/audit-logs` | Consultar auditoria (admin) |
+
+Os demais endpoints administrativos estão em `DigitalSignature/src/main/java/com/Kurzgesagtt/DigitalSignature/controller/AdminController.java`.
 
 ## Estrutura
 
-```
+```text
 DigitalSign/
-├── docker-compose.yml          # PostgreSQL local
-├── DigitalSignature/            # Backend (Spring Boot + Java 17)
-│   └── src/main/java/com/Kurzgesagtt/DigitalSignature/
-│       ├── controller/          # AuthController, PdfSignController, VerificationController
-│       ├── model/               # Usuario, SignatureRecord
-│       ├── repository/          # JPA repositories
-│       └── services/            # PdfMemorySignService, QrCodeService, KeyGenerator
-└── DigitalSignatureFront/       # Frontend (React + TypeScript + Vite)
-    └── src/
-        ├── components/          # LoginPage, RegisterPage, SignPdfForm, VerifyPage
-        └── hooks/               # useSignPdf
+├── docker-compose.yml
+├── .env.example
+├── .github/workflows/ci.yml
+├── DigitalSignature/       # API Spring Boot e testes
+├── DigitalSignatureFront/  # React/Vite, Nginx e testes
+└── postman/                # Coleção de chamadas da API
 ```
-

@@ -115,3 +115,6 @@ ENV/
 # Vinculo local da Vercel
 .vercel/
 .vercel
+
+# Material de apresentação fora do código de deploy
+/presentation/

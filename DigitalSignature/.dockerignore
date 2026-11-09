@@ -4,3 +4,6 @@ target
 .git
 .gitignore
 README.md
+.env
+.env.*
+!.env.example
