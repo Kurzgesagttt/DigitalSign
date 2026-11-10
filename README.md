@@ -60,7 +60,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Abra `http://localhost:8090`. O frontend chama a API pela rota `/api/`. Para ver logs, use `docker compose logs --tail=100 backend frontend db`. `docker compose down` preserva o banco; `docker compose down -v` apaga permanentemente `pgdata`.
+Abra `http://localhost:8090` ou `http://127.0.0.1:8090`. O frontend chama a API pela rota `/api/`. O cadastro local aceita as duas origens. Veja [o guia de deploy local](docs/deploy-local.md) e importe o ambiente de `postman/` para testar a API. Para ver logs, use `docker compose logs --tail=100 backend frontend db`. `docker compose down` preserva o banco; `docker compose down -v` apaga permanentemente `pgdata`.
 
 ### Variáveis de ambiente
 
@@ -69,7 +69,7 @@ Abra `http://localhost:8090`. O frontend chama a API pela rota `/api/`. Para ver
 | `POSTGRES_PASSWORD` | Sim | Senha exclusiva do banco local/da stack. O Compose também a usa na conexão do backend. |
 | `JWT_SECRET` | Sim | Segredo HMAC aleatório, exclusivo por ambiente, com pelo menos 32 bytes. |
 | `APP_BASE_URL` | Não | Origem usada nos QR Codes; no local, `http://localhost:8090`; em produção, a URL HTTPS pública. |
-| `CORS_ALLOWED_ORIGINS` | Não | Origens frontend permitidas, sem caminho; no local, `http://localhost:8090`; em produção, a origem HTTPS exata. |
+| `CORS_ALLOWED_ORIGINS` | Não | Origens frontend permitidas, sem caminho; no local, `http://localhost:8090,http://127.0.0.1:8090`; em produção, a origem HTTPS exata. |
 | `ADMIN_BOOTSTRAP_EMAIL` | Não | Promove a administrador uma conta já cadastrada com esse e-mail quando o backend inicia. Deixe vazio até escolher a conta. |
 
 O Compose usa `digitalsign` como nome fixo do banco e do usuário PostgreSQL. Não há variáveis públicas separadas para a API ou para o banco. Para desenvolvimento do frontend fora do Compose, `DigitalSignatureFront/.env.example` configura `VITE_API_BASE_URL` para a API local. O build Docker de produção já usa `/api` no mesmo domínio.
